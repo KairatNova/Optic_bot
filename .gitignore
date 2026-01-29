@@ -1,3 +1,5 @@
 тг бот
 .venv
 __pycache__/
+database.db
+.env
