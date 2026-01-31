@@ -1,12 +1,8 @@
 from datetime import date, datetime
 from sqlalchemy import Boolean, Column, Computed, Date, DateTime, Float, Index, Integer, String, ForeignKey, func
-from sqlalchemy.orm import relationship,  DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from database.base import Base
-
-
-
-
 
 
 class Person(Base):

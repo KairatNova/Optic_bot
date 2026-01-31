@@ -12,8 +12,6 @@ class Settings:
     def __init__(self, BOT_TOKEN: str):
         self.BOT_TOKEN = BOT_TOKEN
 
-
-        
 def get_settings() -> Settings:
     bot_token = os.getenv("BOT_TOKEN")
 
@@ -25,3 +23,5 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+DATABASE_URL = "sqlite+aiosqlite:///./database.db"
