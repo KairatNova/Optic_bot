@@ -18,4 +18,5 @@ async def on_startup():
     logging.basicConfig(level=logging.INFO)
     await dp.start_polling(bot)
 
+
 asyncio.run(on_startup())
