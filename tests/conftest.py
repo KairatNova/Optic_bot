@@ -1,41 +1,28 @@
+# tests/conftest.py
 import pytest
-from typing import AsyncGenerator
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
+from database.base import Base
 
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    create_async_engine,
-    async_sessionmaker,
-)
+@pytest.fixture(scope="session")  # одна база на все тесты
+def db_session():
+    engine = create_engine("sqlite:///test_db.sqlite")
 
-from sqlalchemy.orm import DeclarativeBase
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
-class Base(DeclarativeBase):
-    pass
+    # Создаём схему только один раз
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
 
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
 
-DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+    yield session
 
-
-@pytest.fixture(scope="session")
-async def engine() -> AsyncGenerator[AsyncEngine, None]:
-    engine = create_async_engine(DATABASE_URL, echo=False)
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    yield engine
-
-    await engine.dispose()
-
-
-@pytest.fixture
-async def session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    async_session_factory = async_sessionmaker(
-        bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-
-    async with async_session_factory() as session:
-        yield session
+    # НЕ откатываем и НЕ закрываем агрессивно — данные остаются
+    session.commit()  # сохраняем всё, что не было закоммичено
+    session.close()
