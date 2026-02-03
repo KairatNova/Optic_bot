@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta, date
 from typing import Optional
-from sqlalchemy import Boolean, Column, Computed, Date, DateTime, Float, Index, Integer, String, ForeignKey, func
+from sqlalchemy import Boolean, Column, Computed, Date, DateTime, Float, Index, Integer, String, ForeignKey, Text, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from database.base import Base
@@ -95,5 +95,13 @@ class Vision(Base):
         "Person",
         back_populates="visions"
     )
+
+
+class BotContent(Base):
+    __tablename__ = "bot_contents"
+
+    key: Mapped[str] = mapped_column(String(30), primary_key=True)  # например: "shop_address", "promotions"
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+
 
 
