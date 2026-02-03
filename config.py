@@ -12,4 +12,4 @@ DATABASE_URL = "sqlite+aiosqlite:///data/database.db"
     if x.strip()
 }'''
 
-OWNER_IDS = [647302816]
+OWNER_IDS = []

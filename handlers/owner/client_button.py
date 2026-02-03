@@ -174,3 +174,5 @@ async def unknown_choosing(message: Message):
 async def unknown_waiting(message: Message):
     if is_owner(message.from_user.id):
         await message.answer("Отправьте новый текст или выйдите.")
+
+#
