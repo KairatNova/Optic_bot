@@ -9,7 +9,7 @@ from database.session import AsyncSessionLocal
 from datetime import date
 
 from forms.forms_fsm import RegistrationStates
-from keyboards.client_kb import client_keyboard
+from keyboards.client_kb import get_client_keyboard
 
 
 start_router = Router()
@@ -68,7 +68,7 @@ async def cmd_start(message: Message, state: FSMContext):
             # Телефон уже есть — сразу показываем основное меню
             await message.answer(
                 f"{welcome_text}\nВыберите нужный пункт в меню:",
-                reply_markup=client_keyboard
+                reply_markup=get_client_keyboard()
             )
             await state.clear()  # На всякий случай
 
@@ -106,7 +106,7 @@ async def process_phone(message: Message, state: FSMContext):
         "Спасибо! Номер телефона успешно сохранён 📱\n"
         "Теперь вы можете пользоваться всеми функциями бота.\n"
         "Выберите нужный пункт в меню:",
-        reply_markup=client_keyboard
+        reply_markup=get_client_keyboard()
     )
     await state.clear()
 

@@ -10,7 +10,8 @@ from aiogram.enums import ParseMode
 from database.init_db import init_db
 from handlers.start import start_router
 from handlers.client import client_router
-from handlers.owner.client_button import get_bot_content, owner__content_router
+from handlers.owner.owner_client_button import owner_router
+from services.content import get_bot_content
 from config import BOT_TOKEN
 
 # Настраиваем логирование ПЕРЕД запуском всего остального
@@ -38,7 +39,7 @@ async def main():
     # Регистрируем роутеры
     dp.include_router(start_router)
     dp.include_router(client_router)
-    dp.include_router(owner__content_router)
+    dp.include_router(owner_router)
 
     logging.info("Бот запущен!")
     

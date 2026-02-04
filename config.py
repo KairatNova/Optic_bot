@@ -12,4 +12,15 @@ DATABASE_URL = "sqlite+aiosqlite:///data/database.db"
     if x.strip()
 }'''
 
-OWNER_IDS = []
+OWNER_IDS = [647302816]
+
+
+# Читаемые названия разделов
+SECTION_NAMES = {
+    "appointment": "📅 Запись на приём",
+    "shop_address": "🕐 График и адрес",
+    "promotions": "🎁 Акции и новости",
+    "catalog": "🕶 Каталог оправ",
+    "about_shop": "🏥 О магазине",
+    "faq": "❓ Поддержка и FAQ",
+}

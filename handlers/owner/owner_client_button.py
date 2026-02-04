@@ -3,62 +3,17 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from database.models import BotContent
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
-
-
-from functools import lru_cache
-from sqlalchemy import select
-
-from database.models import BotContent
-from database.session import AsyncSessionLocal
 from forms.forms_fsm import OwnerContentStates
+from keyboards.client_kb import get_client_keyboard
+from services.content import get_content, clear_content_cache  # новый импорт clear_content_cache
 
-from keyboards.client_kb import client_keyboard
+owner_router = Router()
 
-from sqlalchemy import select
-from typing import Dict
-
-from database.models import BotContent
-from database.session import AsyncSessionLocal
-
-# Глобальный кэш (None = не загружен)
-_content_cache: Dict[str, str] | None = None
-
-async def _load_content() -> Dict[str, str]:
-    """Загрузка контента из БД"""
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(select(BotContent))
-        rows = result.scalars().all()
-        return {row.key: row.value for row in rows}
-
-async def get_bot_content(force_refresh: bool = False) -> Dict[str, str]:
-    """Получение кэша с возможностью принудительного обновления"""
-    global _content_cache
-    if force_refresh or _content_cache is None:
-        _content_cache = await _load_content()
-    return _content_cache
-
-async def get_content(key: str, default: str = "Информация временно недоступна") -> str:
-    """Удобная функция для получения одного значения"""
-    content = await get_bot_content()
-    return content.get(key, default)
-
-def clear_content_cache() -> None:
-    """Сброс кэша (вызывать после изменений в БД)"""
-    global _content_cache
-    _content_cache = None
-
-
-
-
-
-owner__content_router = Router()
-
-# Читаемые названия разделов
 SECTION_NAMES = {
     "appointment": "📅 Запись на приём",
     "shop_address": "🕐 График и адрес",
@@ -80,14 +35,12 @@ def get_sections_keyboard():
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
-# Проверка владельца — мгновенно, без БД
 def is_owner(user_id: int) -> bool:
     return user_id in OWNER_IDS
 
-@owner__content_router.message(Command("owner"))
+@owner_router.message(Command("owner"))
 async def cmd_owner_panel(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
-        # Просто игнорируем (или можно await message.delete(), но лучше молча)
         return
 
     await message.answer(
@@ -97,30 +50,46 @@ async def cmd_owner_panel(message: Message, state: FSMContext):
     )
     await state.set_state(OwnerContentStates.choosing_section)
 
-# Остальные хендлеры — без изменений (кроме проверки is_owner)
-@owner__content_router.message(OwnerContentStates.choosing_section, F.text.in_([v for v in SECTION_NAMES.values()]))
+@owner_router.message(OwnerContentStates.choosing_section, F.text.in_(list(SECTION_NAMES.values())))
 async def section_chosen(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
         await state.clear()
         return
 
     selected_key = next(k for k, v in SECTION_NAMES.items() if v == message.text)
-    current_text = await get_content(selected_key, default="Текст не задан")
+    
+    # Получаем текущий текст, если его нет — None
+    current_text = await get_content(selected_key, default=None)
 
     await state.update_data(edit_key=selected_key)
 
+    if current_text is None:
+        # Первый раз — текста нет
+        preview_text = "Текст ещё не задан."
+        example = (
+            "\n\n<i>Пример текста:</i>\n"
+            "📅 <b>Запись на приём</b>\n\n"
+            "Чтобы записаться, напишите нам в WhatsApp — мы подберём удобное время:\n"
+            '<a href="https://wa.me/996XXXXXXXXX">Написать в WhatsApp</a>\n\n'
+            "Или позвоните: +996 XXX XXX XX XX"
+        ) if selected_key == "appointment" else ""
+    else:
+        preview_text = current_text
+        example = ""
+
     await message.answer(
-        f"<b>Текущий текст: «{message.text}»</b>\n\n"
-        f"{current_text}\n\n"
+        f"<b>Раздел: «{message.text}»</b>\n\n"
+        f"{preview_text}{example}\n\n"
         "Отправьте новый текст (HTML-разметка поддерживается).",
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[[KeyboardButton(text="◀ Выйти из панели")]],
             resize_keyboard=True
-        )
+        ),
+        disable_web_page_preview=True
     )
     await state.set_state(OwnerContentStates.waiting_new_text)
 
-@owner__content_router.message(OwnerContentStates.waiting_new_text, F.text)
+@owner_router.message(OwnerContentStates.waiting_new_text, F.text)
 async def new_text_received(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
         await state.clear()
@@ -144,16 +113,17 @@ async def new_text_received(message: Message, state: FSMContext):
 
         await session.commit()
 
-    clear_content_cache()  # сбрасываем кэш — следующий запрос загрузит свежие данные
+    clear_content_cache()  # <-- правильный сброс кэша
 
     section_name = SECTION_NAMES.get(edit_key, edit_key)
     await message.answer(
-        f"✅ Текст «{section_name}» обновлён!\n\nВыберите следующий:",
+        f"✅ Текст «{section_name}» успешно обновлён!\n\n"
+        "Выберите следующий раздел:",
         reply_markup=get_sections_keyboard()
     )
     await state.set_state(OwnerContentStates.choosing_section)
 
-@owner__content_router.message(F.text == "◀ Выйти из панели")
+@owner_router.message(F.text == "◀ Выйти из панели")
 async def exit_panel(message: Message, state: FSMContext):
     if not is_owner(message.from_user.id):
         return
@@ -161,18 +131,15 @@ async def exit_panel(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
         "Вы вышли из панели владельца.",
-        reply_markup=client_keyboard
+        reply_markup=get_client_keyboard()
     )
 
-# Защита от случайных сообщений
-@owner__content_router.message(OwnerContentStates.choosing_section)
+@owner_router.message(OwnerContentStates.choosing_section)
 async def unknown_choosing(message: Message):
     if is_owner(message.from_user.id):
-        await message.answer("Выберите раздел из списка.")
+        await message.answer("Пожалуйста, выберите раздел из списка ниже.")
 
-@owner__content_router.message(OwnerContentStates.waiting_new_text)
+@owner_router.message(OwnerContentStates.waiting_new_text)
 async def unknown_waiting(message: Message):
     if is_owner(message.from_user.id):
-        await message.answer("Отправьте новый текст или выйдите.")
-
-#
+        await message.answer("Отправьте новый текст или нажмите «◀ Выйти из панели».")

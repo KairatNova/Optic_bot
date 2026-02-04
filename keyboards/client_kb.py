@@ -1,22 +1,25 @@
 from aiogram.types import Message, ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 
+from config import SECTION_NAMES
+
 
 
 # Ваша основная клиентская клавиатура (из предыдущего примера)
-client_keyboard = ReplyKeyboardMarkup(
-    keyboard=[
-        [
-            KeyboardButton(text="📅 Запись на приём"),
-            KeyboardButton(text="🕐 График и адрес")
+def get_client_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text=SECTION_NAMES["appointment"]),
+                KeyboardButton(text=SECTION_NAMES["shop_address"])
+            ],
+            [
+                KeyboardButton(text=SECTION_NAMES["promotions"]),
+                KeyboardButton(text=SECTION_NAMES["catalog"])
+            ],
+            [
+                KeyboardButton(text=SECTION_NAMES["about_shop"]),
+                KeyboardButton(text=SECTION_NAMES["faq"])
+            ]
         ],
-        [
-            KeyboardButton(text="🎁 Акции и новости"),
-            KeyboardButton(text="🕶 Каталог оправ")
-        ],
-        [
-            KeyboardButton(text="🏥 О магазине"),
-            KeyboardButton(text="❓ Поддержка и FAQ")
-        ]
-    ],
-    resize_keyboard=True
-)
+        resize_keyboard=True, 
+    )
