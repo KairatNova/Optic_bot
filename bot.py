@@ -10,8 +10,8 @@ from aiogram.enums import ParseMode
 from database.init_db import init_db
 from handlers.start import start_router
 from handlers.client import client_router
-from handlers.owner.owner_client_button import owner_router
-from services.content import get_bot_content
+from handlers.owner.owner_client_button import owner_content_router
+from services.content import get_bot_content, init_bot_content
 from config import BOT_TOKEN
 
 # Настраиваем логирование ПЕРЕД запуском всего остального
@@ -32,14 +32,16 @@ async def main():
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
+    await init_bot_content()
 
     await get_bot_content(force_refresh=True)  # предзагрузка кэша при старте
     print("Контент бота загружен в кэш")
 
     # Регистрируем роутеры
+    dp.include_router(owner_content_router)
     dp.include_router(start_router)
     dp.include_router(client_router)
-    dp.include_router(owner_router)
+
 
     logging.info("Бот запущен!")
     
