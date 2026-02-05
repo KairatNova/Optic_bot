@@ -7,7 +7,7 @@ from aiogram.exceptions import TelegramBadRequest  # для обработки �
 from config import OWNER_IDS
 from forms.forms_fsm import OwnerContentStates, OwnerMainStates
 from keyboards.client_kb import get_client_keyboard
-from keyboards.admin_kb import get_sections_keyboard, get_owner_main_keyboard
+from keyboards.admin_kb import get_owner_main_keyboard, get_sections_keyboard
 from services.content import get_content
 
 owner_main_router = Router()
