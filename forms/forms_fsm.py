@@ -12,3 +12,7 @@ class RegistrationStates(StatesGroup):
 class OwnerContentStates(StatesGroup):
     choosing_section = State()      # Выбор раздела для редактирования
     waiting_new_text = State()      # Ожидание нового текста
+
+
+class OwnerMainStates(StatesGroup):
+    main_menu = State()

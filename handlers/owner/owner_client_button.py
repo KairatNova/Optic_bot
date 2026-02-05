@@ -10,7 +10,7 @@ from database.session import AsyncSessionLocal
 from config import OWNER_IDS, SECTION_NAMES
 from forms.forms_fsm import OwnerContentStates
 from keyboards.client_kb import get_client_keyboard
-from keyboards.admin_kb import get_sections_keyboard
+from keyboards.admin_kb import get_owner_main_keyboard, get_sections_keyboard
 from services.content import get_content, clear_content_cache
 
 owner_content_router = Router()
@@ -104,8 +104,8 @@ async def exit_from_choosing(message: Message, state: FSMContext):
 
     await state.clear()
     await message.answer(
-        "Вы вышли из панели владельца.",
-        reply_markup=get_client_keyboard()
+        "Вы вышли из Редактирования контента.\n\nВыберите другой раздел:",
+        reply_markup=get_owner_main_keyboard()
     )
 
 # Защита от случайных сообщений в выборе раздела

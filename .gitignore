@@ -5,3 +5,7 @@ database.db
 .env
 *.pyc
 .pytest_cache__/
+data/database.db
+.pytest_cache
+.vscode/
+pytest.ini
