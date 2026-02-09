@@ -1,21 +1,20 @@
 from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.exceptions import TelegramBadRequest  # для обработки ошибок удаления
+from aiogram.exceptions import TelegramBadRequest
 
 from config import OWNER_IDS
-from forms.forms_fsm import OwnerContentStates, OwnerMainStates
+from forms.forms_fsm import OwnerAdminsStates, OwnerBroadcastStates, OwnerContentStates, OwnerMainStates
+from handlers.owner.admins_router import get_admins_keyboard, get_admins_list_text
 from keyboards.client_kb import get_client_keyboard
-from keyboards.admin_kb import get_owner_main_keyboard, get_sections_keyboard
+from keyboards.owner_kb import get_admins_submenu_keyboard, get_broadcast_submenu_keyboard, get_owner_main_keyboard, get_sections_keyboard
 from services.content import get_content
 
 owner_main_router = Router()
 
 def is_owner(user_id: int) -> bool:
     return user_id in OWNER_IDS
-
-
 
 @owner_main_router.message(Command("owner"))
 async def cmd_owner_main(message: Message, state: FSMContext):
@@ -37,19 +36,18 @@ async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
 
     action = callback.data
 
-    # Удаляем старое сообщение (с защитой от ошибок)
     try:
         await callback.message.delete()
     except TelegramBadRequest:
-        pass  # если сообщение уже удалено или недоступно — игнорируем
+        pass
 
     if action == "owner_edit_content":
         await bot.send_message(
             callback.from_user.id,
             "📝 <b>Редактирование контента бота</b>\n\nВыберите раздел:",
-            reply_markup=get_sections_keyboard()  # ReplyKeyboard
+            reply_markup=get_sections_keyboard()
         )
-        await state.set_state(OwnerContentStates.choosing_section)
+        await state.set_state(OwnerContentStates.choosing_section)  # переход в состояние редактирования
 
     elif action == "owner_search_clients":
         await bot.send_message(
@@ -59,11 +57,17 @@ async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
         )
 
     elif action == "owner_broadcast":
+        try:
+            await callback.message.delete()
+        except TelegramBadRequest:
+            pass
+
         await bot.send_message(
             callback.from_user.id,
-            "📨 <b>Рассылки</b>\n\nФункция в разработке.",
-            reply_markup=get_owner_main_keyboard()
+            "📨 <b>Рассылки</b>\n\nВыберите действие:",
+            reply_markup=get_broadcast_submenu_keyboard()  # новая клавиатура, см. ниже
         )
+        await state.set_state(OwnerBroadcastStates.broadcast_menu)
 
     elif action == "owner_exports":
         await bot.send_message(
@@ -73,11 +77,17 @@ async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
         )
 
     elif action == "owner_manage_admins":
+        try:
+            await callback.message.delete()
+        except TelegramBadRequest:
+            pass
+
         await bot.send_message(
             callback.from_user.id,
-            "⚙ <b>Управление админами</b>\n\nФункция в разработке.",
-            reply_markup=get_owner_main_keyboard()
+            await get_admins_list_text(),
+            reply_markup=get_admins_keyboard()
         )
+        await state.set_state(OwnerAdminsStates.admins_menu)
 
     elif action == "owner_exit":
         await state.clear()
@@ -89,7 +99,6 @@ async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
 
     await callback.answer()
 
-# Если владелец отправил текст в главном меню — напоминаем
 @owner_main_router.message(OwnerMainStates.main_menu)
 async def unknown_in_main_menu(message: Message):
     if is_owner(message.from_user.id):

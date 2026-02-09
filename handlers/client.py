@@ -1,13 +1,21 @@
-from aiogram import Router
-from aiogram.types import Message
 
-from aiogram import F
+from aiogram.types import Message
+from aiogram.filters import Command
+from aiogram import F, Router
 
 from services.content import get_content
 from config import SECTION_NAMES
-
+from keyboards.client_kb import get_client_keyboard
 
 client_router = Router()
+
+@client_router.message(Command("button"))
+async def show_keyboard(message: Message):
+
+    await message.answer("Выберите раздел:", reply_markup=get_client_keyboard())
+
+
+
 @client_router.message(F.text == SECTION_NAMES["appointment"])
 async def appointment(message: Message):
     text = await get_content("appointment")

@@ -8,10 +8,15 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from database.init_db import init_db
+
 from handlers.start import start_router
 from handlers.client import client_router
-from handlers.owner.owner_client_button import owner_content_router
+from handlers.owner.client_button import owner_content_router
 from handlers.owner.owner_main import owner_main_router
+from handlers.owner.admins_router import owner_admins_router
+from handlers.owner.broadcast_router import owner_broadcast_router
+
+from keyboards.client_kb import set_commands
 from services.content import get_bot_content, init_bot_content
 from config import BOT_TOKEN
 
@@ -33,6 +38,9 @@ async def main():
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
+
+    await set_commands(bot)
+
     await init_bot_content()
 
     await get_bot_content(force_refresh=True)  # предзагрузка кэша при старте
@@ -40,7 +48,10 @@ async def main():
 
     # Регистрируем роутеры
     dp.include_router(owner_main_router)
+    dp.include_router(owner_admins_router)
     dp.include_router(owner_content_router)
+    dp.include_router(owner_broadcast_router)  # новый
+
     dp.include_router(start_router)
     dp.include_router(client_router)
 

@@ -16,3 +16,18 @@ class OwnerContentStates(StatesGroup):
 
 class OwnerMainStates(StatesGroup):
     main_menu = State()
+
+class OwnerAdminsStates(StatesGroup):
+    admins_menu = State()           # подменю управления админами
+    waiting_for_add_input = State() # ожидание telegram_id или телефона для добавления
+    waiting_for_delete_input = State()  # ожидание для удаления
+
+
+
+class OwnerBroadcastStates(StatesGroup):
+    broadcast_menu = State()                # подменю рассылок
+    waiting_search_query = State()          # ожидание строки поиска
+    viewing_profile = State()               # просмотр профиля (data: person_id)
+    waiting_message_text = State()          # ожидание текста сообщения (data: person_id)
+    waiting_broadcast_text = State()  # ожидание текста рассылки (data: list of person_ids)
+

@@ -1,3 +1,4 @@
+from aiogram import Bot
 from aiogram.types import Message, ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 
 from config import SECTION_NAMES
@@ -23,3 +24,12 @@ def get_client_keyboard():
         ],
         resize_keyboard=True, 
     )
+
+
+from aiogram.types import BotCommand
+
+async def set_commands(bot: Bot):
+    commands = [
+        BotCommand(command="button", description=" Показать клавиатуру"),
+    ]
+    await bot.set_my_commands(commands)
