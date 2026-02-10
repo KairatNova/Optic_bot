@@ -15,6 +15,9 @@ from handlers.owner.client_button import owner_content_router
 from handlers.owner.owner_main import owner_main_router
 from handlers.owner.admins_router import owner_admins_router
 from handlers.owner.broadcast_router import owner_broadcast_router
+from handlers.owner.clients_router import owner_clients_router
+from handlers.owner.vision_router import owner_vision_router
+
 
 from keyboards.client_kb import set_commands
 from services.content import get_bot_content, init_bot_content
@@ -48,9 +51,11 @@ async def main():
 
     # Регистрируем роутеры
     dp.include_router(owner_main_router)
+    dp.include_router(owner_clients_router)# новый
     dp.include_router(owner_admins_router)
     dp.include_router(owner_content_router)
     dp.include_router(owner_broadcast_router)  # новый
+    dp.include_router(owner_vision_router)  # новый
 
     dp.include_router(start_router)
     dp.include_router(client_router)

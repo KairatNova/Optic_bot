@@ -25,7 +25,7 @@ def get_owner_main_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📝 Редактировать контент бота", callback_data="owner_edit_content")],
         [InlineKeyboardButton(text="🔍 Поиск клиентов", callback_data="owner_search_clients")],
-        [InlineKeyboardButton(text="👥 Управление клиентами", callback_data="clients_menu")],
+[InlineKeyboardButton(text="👥 Клиенты и рецепты", callback_data="owner_clients")],
         [InlineKeyboardButton(text="📨 Рассылки (всем / одному)", callback_data="owner_broadcast")],
         [InlineKeyboardButton(text="📊 Выгрузки данных (Excel/PDF)", callback_data="owner_exports")],
         [InlineKeyboardButton(text="⚙ Управление админами", callback_data="owner_manage_admins")],
@@ -46,4 +46,11 @@ def get_broadcast_submenu_keyboard():
         [InlineKeyboardButton(text="Сообщение одному клиенту", callback_data="broadcast_one")],
         [InlineKeyboardButton(text="Рассылка всем клиентам", callback_data="broadcast_all")],
         [InlineKeyboardButton(text="◀ Назад в главное меню", callback_data="broadcast_back")],
+    ])
+
+
+def get_clients_submenu_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔍 Поиск клиента", callback_data="clients_search")],
+        [InlineKeyboardButton(text="◀ Назад в главное меню", callback_data="clients_back")],
     ])

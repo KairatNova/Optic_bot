@@ -31,3 +31,11 @@ class OwnerBroadcastStates(StatesGroup):
     waiting_message_text = State()          # ожидание текста сообщения (data: person_id)
     waiting_broadcast_text = State()  # ожидание текста рассылки (data: list of person_ids)
 
+class OwnerClientsStates(StatesGroup):
+    clients_menu = State()           # главное меню клиентов
+    waiting_search_query = State()     # поиск клиента
+    viewing_client_profile = State()   # просмотр профиля
+    editing_client_data = State()      # редактирование имени/возраста
+    waiting_sph_cyl_axis = State()
+    waiting_pd_lens_frame = State()
+    waiting_note = State()

@@ -5,10 +5,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 
 from config import OWNER_IDS
-from forms.forms_fsm import OwnerAdminsStates, OwnerBroadcastStates, OwnerContentStates, OwnerMainStates
+from forms.forms_fsm import (OwnerAdminsStates, OwnerBroadcastStates, 
+                             OwnerClientsStates, OwnerContentStates, OwnerMainStates
+                              )
+
 from handlers.owner.admins_router import get_admins_keyboard, get_admins_list_text
 from keyboards.client_kb import get_client_keyboard
-from keyboards.owner_kb import get_admins_submenu_keyboard, get_broadcast_submenu_keyboard, get_owner_main_keyboard, get_sections_keyboard
+from keyboards.owner_kb import get_admins_submenu_keyboard, get_broadcast_submenu_keyboard, get_clients_submenu_keyboard, get_owner_main_keyboard, get_sections_keyboard
 from services.content import get_content
 
 owner_main_router = Router()
@@ -54,7 +57,23 @@ async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
             callback.from_user.id,
             "🔍 <b>Поиск клиентов</b>\n\nФункция в разработке.",
             reply_markup=get_owner_main_keyboard()
+
         )
+    elif action == "owner_clients":
+        try:
+            await callback.message.delete()
+        except TelegramBadRequest:
+            pass
+
+        await bot.send_message(
+            callback.from_user.id,
+            "🔍 <b>Поиск клиента</b>\n\n"
+            "Введите номер телефона, telegram_id или часть имени/фамилии.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="◀ Отмена", callback_data="clients_cancel_search")]
+            ])
+        )
+        await state.set_state(OwnerClientsStates.waiting_search_query)
 
     elif action == "owner_broadcast":
         try:
