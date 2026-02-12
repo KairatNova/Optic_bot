@@ -101,6 +101,7 @@ async def process_search(message: Message, state: FSMContext, bot: Bot):
 
 async def show_client_profile(trigger, person: Person, state: FSMContext, bot: Bot):
     async with AsyncSessionLocal() as session:
+        # Последняя запись зрения
         last_vision = await session.execute(
             select(Vision)
             .where(Vision.person_id == person.id)
@@ -108,6 +109,14 @@ async def show_client_profile(trigger, person: Person, state: FSMContext, bot: B
             .limit(1)
         )
         last_vision = last_vision.scalar_one_or_none()
+
+        # Все записи зрения (для будущего просмотра предыдущих)
+        all_visions = await session.execute(
+            select(Vision)
+            .where(Vision.person_id == person.id)
+            .order_by(Vision.visit_date.desc())
+        )
+        all_visions = all_visions.scalars().all()
 
     profile_text = f"👤 <b>Профиль клиента</b>\n\n"
     profile_text += f"ФИО: {person.full_name or '—'}\n"
@@ -124,26 +133,44 @@ async def show_client_profile(trigger, person: Person, state: FSMContext, bot: B
         profile_text += f"Правая: SPH {last_vision.sph_r or '—'} | CYL {last_vision.cyl_r or '—'} | AXIS {last_vision.axis_r or '—'}\n"
         profile_text += f"Левая: SPH {last_vision.sph_l or '—'} | CYL {last_vision.cyl_l or '—'} | AXIS {last_vision.axis_l or '—'}\n"
         profile_text += f"PD: {last_vision.pd or '—'}\n"
+        profile_text += f"Тип линз: {last_vision.lens_type or '—'}\n"
+        profile_text += f"Модель оправы: {last_vision.frame_model or '—'}\n"
         if last_vision.note:
             profile_text += f"Примечание: {last_vision.note}\n"
     else:
         profile_text += "<i>Записей зрения пока нет</i>\n"
 
+    # Количество записей зрения
+    profile_text += f"\nВсего записей зрения: {len(all_visions)}\n"
+
     kb = [
         [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"edit_client_{person.id}")],
-        [InlineKeyboardButton(text="✏ Редактировать запись зрения", callback_data=f"edit_vision_{person.id}")],
+    
         [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"add_vision_{person.id}")],
+       [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"view_all_visions_{person.id}")],
         [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="back_to_clients_search")],
         [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
     ]
 
+# Всегда отправляем новое сообщение вместо редактирования
     if isinstance(trigger, Message):
         await trigger.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     else:
-        await trigger.message.edit_text(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
+        # CallbackQuery — удаляем старое, если возможно, и отправляем новое
+        try:
+            await trigger.message.delete()
+        except TelegramBadRequest:
+            pass  # если уже удалено — ок
+
+        await bot.send_message(
+            trigger.from_user.id,
+            profile_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=kb)
+        )
 
     await state.update_data(person_id=person.id)
     await state.set_state(OwnerClientsStates.viewing_client_profile)
+
 @owner_clients_router.callback_query(F.data.startswith("client_profile_"))
 async def select_client_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
     person_id = int(callback.data.split("_")[2])
@@ -248,17 +275,18 @@ async def process_edit_client(message: Message, state: FSMContext, bot: Bot):
         profile_text += f"Последний визит: {person.last_visit_date or '—'}"
 
         # Кнопки как в полном профиле
-        kb = [
-            [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"edit_client_{person.id}")],
-            [InlineKeyboardButton(text="✏ Редактировать запись зрения", callback_data=f"edit_vision_{person.id}")],
-            [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"add_vision_{person.id}")],
-            [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="back_to_clients_search")],
-            [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
-        ]
+    kb = [
+        [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"edit_client_{person.id}")],
+      
+        [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"add_vision_{person.id}")],
+        [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"view_all_visions_{person.id}")],
+        [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="back_to_clients_search")],
+        [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
+    ]
 
-        await message.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
+    await message.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
 
-        await state.set_state(OwnerClientsStates.viewing_client_profile)
+    await state.set_state(OwnerClientsStates.viewing_client_profile)
 
 # Кнопка "Главная панель" — сразу в главное меню
 @owner_clients_router.callback_query(F.data == "to_main_panel")
@@ -272,9 +300,9 @@ async def to_main_panel(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await callback.answer()
 
 # Заглушки для зрения (пока)
-@owner_clients_router.callback_query(F.data.startswith("edit_vision_") )
-async def vision_placeholder(callback: CallbackQuery):
-    await callback.answer("Функция редактирования/добавления записей зрения пока в разработке.", show_alert=True)
+#@owner_clients_router.callback_query(F.data.startswith("edit_vision_") )
+#async def vision_placeholder(callback: CallbackQuery):
+#    await callback.answer("Функция редактирования/добавления записей зрения пока в разработке.", show_alert=True)
 
 # Назад к поиску
 @owner_clients_router.callback_query(OwnerClientsStates.viewing_client_profile, F.data == "back_to_clients_search")
@@ -289,3 +317,63 @@ async def back_to_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
     )
     await state.set_state(OwnerClientsStates.waiting_search_query)
     await callback.answer("Возврат к поиску")
+
+
+@owner_clients_router.callback_query(F.data.startswith("view_all_visions_"))
+async def view_all_visions(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    person_id = int(callback.data.split("_")[3])
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(Vision)
+            .where(Vision.person_id == person_id)
+            .order_by(Vision.visit_date.desc())
+        )
+        visions = result.scalars().all()
+
+    if not visions:
+        await callback.answer("У клиента нет записей зрения.", show_alert=True)
+        return
+
+    text = "<b>Все записи зрения клиента:</b>\n\n"
+    for v in visions:
+        text += f"📅 {v.visit_date}\n"
+        text += f"Правая: SPH {v.sph_r or '—'} | CYL {v.cyl_r or '—'} | AXIS {v.axis_r or '—'}\n"
+        text += f"Левая: SPH {v.sph_l or '—'} | CYL {v.cyl_l or '—'} | AXIS {v.axis_l or '—'}\n"
+        text += f"PD: {v.pd or '—'}\n"
+        text += f"Тип линз: {v.lens_type or '—'}\n"
+        text += f"Модель оправы: {v.frame_model or '—'}\n"
+        if v.note:
+            text += f"Примечание: {v.note}\n"
+        text += "────────────────────\n"
+
+    kb = [
+    [InlineKeyboardButton(text="◀ Назад в профиль", callback_data=f"back_to_profile_{person_id}")],
+    [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
+]
+
+    await bot.send_message(callback.from_user.id, text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
+    await callback.answer()
+
+
+@owner_clients_router.callback_query(F.data.startswith("back_to_profile_"))
+async def back_to_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    person_id = int(callback.data.split("_")[3])
+
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
+
+    async with AsyncSessionLocal() as session:
+        person = await session.get(Person, person_id)
+        if not person:
+            await callback.answer("Клиент не найден.", show_alert=True)
+            return
+
+    await show_client_profile(callback, person, state, bot)
+    await callback.answer("Возврат в профиль")

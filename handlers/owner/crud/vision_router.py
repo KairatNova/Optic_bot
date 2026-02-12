@@ -14,7 +14,7 @@ from config import OWNER_IDS
 from forms.forms_fsm import OwnerClientsStates  # добавьте новые состояния в forms_fsm.py
 from datetime import date
 
-from handlers.owner.clients_router import show_client_profile 
+from handlers.owner.crud.clients_router import show_client_profile 
 
 
 owner_vision_router = Router()
@@ -61,7 +61,7 @@ async def cancel_add_vision(callback: CallbackQuery, state: FSMContext, bot: Bot
         async with AsyncSessionLocal() as session:
             person = await session.get(Person, person_id)
         if person:
-            from handlers.owner.clients_router import show_client_profile  # импорт функции профиля
+            from handlers.owner.crud.clients_router  import show_client_profile  # импорт функции профиля
             await show_client_profile(callback, person, state, bot)
 
     await callback.answer("Добавление записи отменено")
@@ -103,7 +103,7 @@ async def process_sph_cyl_axis(message: Message, state: FSMContext, bot: Bot):
         "PD lens_type frame_model\n\n"
         "Пример:\n"
         "62 progressive Ray-Ban RB2132\n\n"
-        "PD — число (например 62).\n"
+        "PD — число (например 62).\n\n"
         "lens_type и frame_model — текст (можно пропустить, написав только PD).",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="◀ Отмена", callback_data="cancel_add_vision")]
