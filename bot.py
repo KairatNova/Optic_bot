@@ -20,6 +20,7 @@ from handlers.owner.broadcast_router import owner_broadcast_router
 from handlers.owner.crud.clients_router import owner_clients_router
 from handlers.owner.crud.vision_router import owner_vision_router
 from handlers.owner.crud.edit_and_delete import owner_vision_edit_router
+from handlers.owner.export_router import owner_export_router
 
 
 
@@ -63,6 +64,7 @@ async def main():
     dp.include_router(owner_vision_edit_router)
     dp.include_router(start_router)
     dp.include_router(client_router)
+    dp.include_router(owner_export_router)
 
 
     logging.info("Бот запущен!")

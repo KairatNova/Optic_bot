@@ -60,3 +60,6 @@ class OwnerVisionStates(StatesGroup):
     waiting_delete_confirm = State()    # подтверждение удаления'''
 
 
+# Новые состояния (добавьте в forms_fsm.py)
+class OwnerExportStates(StatesGroup):
+    export_menu = State()  # подменю выгрузок

@@ -16,6 +16,7 @@ from datetime import date
 
 from handlers.owner.crud.clients_router import show_client_profile
 
+
 owner_vision_edit_router = Router()
 
 def is_owner(user_id: int) -> bool:
@@ -59,14 +60,15 @@ async def show_vision_record(trigger, index: int, visions: list[Vision], bot: Bo
     text += f"\nЗапись {index + 1} из {len(visions)}"
 
     kb = [
-        [
-            InlineKeyboardButton(text="◀", callback_data=f"vision_prev_{index}"),
-            InlineKeyboardButton(text="▶", callback_data=f"vision_next_{index}"),
-        ],
-        [InlineKeyboardButton(text="✏ Редактировать эту запись", callback_data=f"edit_this_vision_{v.id}")],
-        [InlineKeyboardButton(text="🗑 Удалить эту запись", callback_data=f"delete_this_vision_{v.id}")],
-        [InlineKeyboardButton(text="◀ Назад в профиль", callback_data=f"back_to_profile_{visions[0].person_id}")],
-    ]
+    [
+        InlineKeyboardButton(text="◀", callback_data=f"vision_prev_{index}"),
+        InlineKeyboardButton(text="▶", callback_data=f"vision_next_{index}"),
+    ],
+    [InlineKeyboardButton(text="✏ Редактировать эту запись", callback_data=f"edit_this_vision_{v.id}")],
+    [InlineKeyboardButton(text="🗑 Удалить эту запись", callback_data=f"delete_this_vision_{v.id}")],
+    [InlineKeyboardButton(text="📄 Выгрузить в PDF", callback_data=f"export_pdf_{v.id}")],
+    [InlineKeyboardButton(text="◀ Назад в профиль", callback_data=f"back_to_profile_{visions[0].person_id}")],
+]
 
     if isinstance(trigger, Message):
         await trigger.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
@@ -295,3 +297,6 @@ async def cancel_edit_vision(callback: CallbackQuery, state: FSMContext, bot: Bo
             await show_client_profile(callback, person, state, bot)
 
     await callback.answer("Редактирование отменено")
+
+
+

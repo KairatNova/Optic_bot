@@ -185,5 +185,3 @@ async def process_note_and_save(message: Message, state: FSMContext, bot: Bot):
  # если в отдельном файле — импорт
     await show_client_profile(message, person, state, bot)
     await state.set_state(OwnerClientsStates.viewing_client_profile)
-
-
