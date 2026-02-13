@@ -39,12 +39,27 @@ class OwnerClientsStates(StatesGroup):
     waiting_sph_cyl_axis = State()
     waiting_pd_lens_frame = State()
     waiting_note = State()
+    viewing_vision = State()  # просмотр одной записи с пагинацией
+    waiting_confirm_delete = State()  # подтверждение удаления
+    waiting_sph_cyl_axis_edit = State()  # редактирование шага 1
+    waiting_pd_lens_frame_edit = State()  # редактирование шага 2
+    waiting_note_edit = State()  # редактирование шага 3
 
 
+
+# Новые состояния (добавьте в OwnerClientsStates в forms_fsm.py)
+
+
+'''
 class OwnerVisionStates(StatesGroup):
     viewing_visions = State()           # просмотр списка записей (data: person_id, current_index)
     editing_vision = State()            # редактирование одной записи
     waiting_sph_cyl_axis_edit = State()
     waiting_pd_lens_frame_edit = State()
     waiting_note_edit = State()
-    waiting_delete_confirm = State()    # подтверждение удаления
+    waiting_delete_confirm = State()    # подтверждение удаления'''
+
+
+# Новые состояния (добавьте в forms_fsm.py)
+class OwnerExportStates(StatesGroup):
+    export_menu = State()  # подменю выгрузок

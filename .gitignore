@@ -1,11 +1,13 @@
 тг бот
 .venv
+venv
 __pycache__/
 database.db
 .env
 *.pyc
 .pytest_cache__/
 data/database.db
+.database.db
 .pytest_cache
 .vscode/
 pytest.ini

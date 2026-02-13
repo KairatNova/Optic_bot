@@ -6,12 +6,12 @@ from aiogram.exceptions import TelegramBadRequest
 
 from config import OWNER_IDS
 from forms.forms_fsm import (OwnerAdminsStates, OwnerBroadcastStates, 
-                             OwnerClientsStates, OwnerContentStates, OwnerMainStates
+                             OwnerClientsStates, OwnerContentStates, OwnerExportStates, OwnerMainStates
                               )
 
 from handlers.owner.admins_router import get_admins_keyboard, get_admins_list_text
 from keyboards.client_kb import get_client_keyboard
-from keyboards.owner_kb import get_admins_submenu_keyboard, get_broadcast_submenu_keyboard, get_clients_submenu_keyboard, get_owner_main_keyboard, get_sections_keyboard
+from keyboards.owner_kb import get_admins_submenu_keyboard, get_broadcast_submenu_keyboard, get_clients_submenu_keyboard, get_export_submenu_keyboard, get_owner_main_keyboard, get_sections_keyboard
 from services.content import get_content
 
 owner_main_router = Router()
@@ -89,11 +89,17 @@ async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
         await state.set_state(OwnerBroadcastStates.broadcast_menu)
 
     elif action == "owner_exports":
+        try:
+            await callback.message.delete()
+        except TelegramBadRequest:
+            pass
+
         await bot.send_message(
             callback.from_user.id,
-            "📊 <b>Выгрузки данных</b>\n\nФункция в разработке.",
-            reply_markup=get_owner_main_keyboard()
+            "📊 <b>Выгрузки данных</b>\n\nВыберите тип выгрузки:",
+            reply_markup=get_export_submenu_keyboard()
         )
+        await state.set_state(OwnerExportStates.export_menu)
 
     elif action == "owner_manage_admins":
         try:

@@ -54,3 +54,12 @@ def get_clients_submenu_keyboard():
         [InlineKeyboardButton(text="🔍 Поиск клиента", callback_data="clients_search")],
         [InlineKeyboardButton(text="◀ Назад в главное меню", callback_data="clients_back")],
     ])
+
+
+# Подменю выгрузок
+def get_export_submenu_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Выгрузить всех клиентов в Excel", callback_data="export_all_clients")],
+        [InlineKeyboardButton(text="📊 Выгрузить записи зрения в Excel", callback_data="export_all_visions")],
+        [InlineKeyboardButton(text="◀ Назад в главное меню", callback_data="export_back")],
+    ])

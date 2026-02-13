@@ -22,10 +22,7 @@ owner_vision_router = Router()
 def is_owner(user_id: int) -> bool:
     return user_id in OWNER_IDS
 
-# Новые состояния для добавления записи зрения (добавьте в forms_fsm.py в OwnerClientsStates)
-# waiting_sph_cyl_axis = State()
-# waiting_pd_lens_frame = State()
-# waiting_note = State()
+
 
 # Начало добавления записи зрения
 @owner_vision_router.callback_query(OwnerClientsStates.viewing_client_profile, F.data.startswith("add_vision_"))
