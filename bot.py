@@ -12,14 +12,14 @@ from database.init_db import init_db
 
 from handlers.start import start_router
 from handlers.client import client_router
-from handlers.owner.crud.vision_manage import vision_manage_router
+
 from handlers.owner.client_button import owner_content_router
 from handlers.owner.owner_main import owner_main_router
 from handlers.owner.admins_router import owner_admins_router
 from handlers.owner.broadcast_router import owner_broadcast_router
 from handlers.owner.crud.clients_router import owner_clients_router
 from handlers.owner.crud.vision_router import owner_vision_router
-
+from handlers.owner.crud.edit_and_delete import owner_vision_edit_router
 
 
 
@@ -60,7 +60,7 @@ async def main():
     dp.include_router(owner_content_router)
     dp.include_router(owner_broadcast_router)  # новый
     dp.include_router(owner_vision_router)  # новый
-    dp.include_router(vision_manage_router)
+    dp.include_router(owner_vision_edit_router)
     dp.include_router(start_router)
     dp.include_router(client_router)
 

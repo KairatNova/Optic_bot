@@ -318,7 +318,7 @@ async def back_to_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await state.set_state(OwnerClientsStates.waiting_search_query)
     await callback.answer("Возврат к поиску")
 
-
+'''
 @owner_clients_router.callback_query(F.data.startswith("view_all_visions_"))
 async def view_all_visions(callback: CallbackQuery, state: FSMContext, bot: Bot):
     person_id = int(callback.data.split("_")[3])
@@ -354,8 +354,7 @@ async def view_all_visions(callback: CallbackQuery, state: FSMContext, bot: Bot)
 
     await bot.send_message(callback.from_user.id, text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     await callback.answer()
-
-
+'''
 @owner_clients_router.callback_query(F.data.startswith("back_to_profile_"))
 async def back_to_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
     person_id = int(callback.data.split("_")[3])
@@ -377,3 +376,27 @@ async def back_to_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
     await show_client_profile(callback, person, state, bot)
     await callback.answer("Возврат в профиль")
+
+
+@owner_clients_router.callback_query(OwnerClientsStates.editing_client_data, F.data == "cancel_edit_client")
+async def cancel_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
+
+    data = await state.get_data()
+    person_id = data.get("person_id")
+
+    if person_id:
+        async with AsyncSessionLocal() as session:
+            person = await session.get(Person, person_id)
+        if person:
+            await show_client_profile(callback, person, state, bot)
+
+    await state.set_state(OwnerClientsStates.viewing_client_profile)
+    await callback.answer("Редактирование отменено")
