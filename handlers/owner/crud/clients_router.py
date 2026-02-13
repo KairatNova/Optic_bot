@@ -98,10 +98,9 @@ async def process_search(message: Message, state: FSMContext, bot: Bot):
         f"🔍 Найдено {len(persons)} клиентов. Выберите:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=kb)
     )
-
+# Функция показа профиля — всегда новое сообщение
 async def show_client_profile(trigger, person: Person, state: FSMContext, bot: Bot):
     async with AsyncSessionLocal() as session:
-        # Последняя запись зрения
         last_vision = await session.execute(
             select(Vision)
             .where(Vision.person_id == person.id)
@@ -110,7 +109,6 @@ async def show_client_profile(trigger, person: Person, state: FSMContext, bot: B
         )
         last_vision = last_vision.scalar_one_or_none()
 
-        # Все записи зрения (для будущего просмотра предыдущих)
         all_visions = await session.execute(
             select(Vision)
             .where(Vision.person_id == person.id)
@@ -140,27 +138,25 @@ async def show_client_profile(trigger, person: Person, state: FSMContext, bot: B
     else:
         profile_text += "<i>Записей зрения пока нет</i>\n"
 
-    # Количество записей зрения
     profile_text += f"\nВсего записей зрения: {len(all_visions)}\n"
 
     kb = [
         [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"edit_client_{person.id}")],
-    
         [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"add_vision_{person.id}")],
-       [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"view_all_visions_{person.id}")],
+        [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"view_all_visions_{person.id}")],
         [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="back_to_clients_search")],
         [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
     ]
 
-# Всегда отправляем новое сообщение вместо редактирования
+    # Всегда новое сообщение
     if isinstance(trigger, Message):
         await trigger.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     else:
-        # CallbackQuery — удаляем старое, если возможно, и отправляем новое
+        # CallbackQuery — удаляем старое, если возможно
         try:
             await trigger.message.delete()
         except TelegramBadRequest:
-            pass  # если уже удалено — ок
+            pass  # уже удалено — нормально
 
         await bot.send_message(
             trigger.from_user.id,
