@@ -1,18 +1,16 @@
-# Новый файл: routers/owner_export_router.py
-# Подключите в main.py: dp.include_router(owner_export_router)
-
 from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from database.models import Person, Vision
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
-from forms.forms_fsm import OwnerExportStates, OwnerMainStates  
-from keyboards.owner_kb import get_export_submenu_keyboard, get_owner_main_keyboard
+from forms.forms_fsm import OwnerExportStates, OwnerMainStates
+from keyboards.owner_kb import get_owner_main_keyboard, get_export_submenu_keyboard
 import pandas as pd
 from io import BytesIO
 
@@ -21,12 +19,12 @@ owner_export_router = Router()
 def is_owner(user_id: int) -> bool:
     return user_id in OWNER_IDS
 
-
-
-
-# Вход в раздел выгрузки (из owner_main_router: добавьте elif action == "owner_exports")
-# await bot.send_message(callback.from_user.id, "📊 <b>Выгрузки данных</b>\n\nВыберите тип выгрузки:", reply_markup=get_export_submenu_keyboard())
-# await state.set_state(OwnerExportStates.export_menu)
+def get_export_submenu_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Выгрузить всех клиентов в Excel", callback_data="export_all_clients")],
+        [InlineKeyboardButton(text="📊 Выгрузить записи зрения в Excel", callback_data="export_all_visions")],
+        [InlineKeyboardButton(text="◀ Назад в главное меню", callback_data="export_back")],
+    ])
 
 @owner_export_router.callback_query(OwnerExportStates.export_menu, F.data.startswith("export_"))
 async def export_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
@@ -48,7 +46,6 @@ async def export_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
             result = await session.execute(select(Person))
             persons = result.scalars().all()
 
-        # Создаём DataFrame
         data = {
             'ID': [p.id for p in persons],
             'ФИО': [p.full_name or '—' for p in persons],
@@ -64,19 +61,16 @@ async def export_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
         df = pd.DataFrame(data)
 
-        # Генерируем Excel в памяти
         excel_buffer = BytesIO()
         df.to_excel(excel_buffer, index=False, engine='openpyxl')
         excel_buffer.seek(0)
 
-        # Отправляем файл
         await bot.send_document(
             callback.from_user.id,
-            FSInputFile(excel_buffer, filename="clients.xlsx"),
+            BufferedInputFile(excel_buffer.getvalue(), filename="clients.xlsx"),
             caption="✅ Выгрузка всех клиентов в Excel готова!"
         )
 
-        # Возврат в подменю
         await bot.send_message(
             callback.from_user.id,
             "📊 <b>Выгрузки данных</b>\n\nВыберите тип выгрузки:",
@@ -87,12 +81,14 @@ async def export_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
         await bot.send_message(callback.from_user.id, "📊 Генерирую Excel с записями зрения...")
 
         async with AsyncSessionLocal() as session:
-            result = await session.execute(select(Vision).join(Person))
-            visions = result.scalars().all()
+            result = await session.execute(
+                select(Vision).options(joinedload(Vision.person))
+            )
+            visions = result.scalars().unique().all()
 
         data = {
             'Client ID': [v.person_id for v in visions],
-            'ФИО клиента': [v.person.full_name or '—' for v in visions],
+            'ФИО клиента': [v.person.full_name or '—' if v.person else '—' for v in visions],
             'Дата визита': [v.visit_date for v in visions],
             'SPH R': [v.sph_r or '—' for v in visions],
             'CYL R': [v.cyl_r or '—' for v in visions],
@@ -114,7 +110,7 @@ async def export_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
         await bot.send_document(
             callback.from_user.id,
-            FSInputFile(excel_buffer, filename="visions.xlsx"),
+            BufferedInputFile(excel_buffer.getvalue(), filename="visions.xlsx"),
             caption="✅ Выгрузка всех записей зрения в Excel готова!"
         )
 
@@ -123,13 +119,12 @@ async def export_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
             "📊 <b>Выгрузки данных</b>\n\nВыберите тип выгрузки:",
             reply_markup=get_export_submenu_keyboard()
         )
-
     elif action == "export_back":
-        await state.set_state(OwnerMainStates.main_menu)
-        await bot.send_message(
-            callback.from_user.id,
-            "👑 <b>Панель владельца</b>\n\nВыберите раздел:",
-            reply_markup=get_owner_main_keyboard()
-        )
+            await state.set_state(OwnerMainStates.main_menu)
+            await bot.send_message(
+                callback.from_user.id,
+                "👑 <b>Панель владельца</b>\n\nВыберите раздел:",
+                reply_markup=get_owner_main_keyboard()
+            )
 
     await callback.answer()
