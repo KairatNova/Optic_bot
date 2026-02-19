@@ -176,7 +176,7 @@ async def admin_show_profile(trigger, person: Person, state: FSMContext, bot: Bo
 
     kb = [
         [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"admin_edit_client_{person.id}")],
-        [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"admin_add_vision_{person.id}")],
+        [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"add_vision_{person.id}")],
         [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"admin_view_all_visions_{person.id}")],
         [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="admin_back_to_search")],
         [InlineKeyboardButton(text="◀ В админ-меню", callback_data="admin_back_to_menu")],

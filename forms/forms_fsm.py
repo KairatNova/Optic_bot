@@ -65,17 +65,23 @@ class OwnerExportStates(StatesGroup):
     export_menu = State()  # подменю выгрузок
 
 
+# Состояния администратора (Admin)
 class AdminMainStates(StatesGroup):
-    admin_menu = State()  # главное меню админа
-    
-
+    admin_menu = State()               # главное меню админа
 
 class AdminBroadcastStates(StatesGroup):
-    waiting_search_query = State()     # поиск клиента
-    viewing_profile = State()          # просмотр профиля (data: person_id)
-    waiting_message_text = State()     # ввод текста сообщения
-
+    waiting_search_query = State()
+    viewing_profile = State()
+    waiting_message_text = State()
 
 class AdminClientsStates(StatesGroup):
-    waiting_search_query = State()     # поиск клиента
-    viewing_profile = State()          # просмотр профиля (data: person_id)
+    waiting_search_query = State()
+    viewing_profile = State()
+    editing_client_data = State()        # просмотр профиля (data: person_id)
+
+
+
+class OwnerVisionAddStates(StatesGroup):
+    waiting_sph_cyl_axis = State()     # шаг 1: 6 значений зрения
+    waiting_pd_lens_frame = State()    # шаг 2: PD + тип линз + оправа
+    waiting_note = State()             # шаг 3: примечание

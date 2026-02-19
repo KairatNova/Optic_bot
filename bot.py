@@ -10,6 +10,8 @@ from aiogram.enums import ParseMode
 from database.init_db import init_db
 
 
+from handlers.admin.owner_vision_add_router import owner_vision_add_router
+from handlers.admin.admin_client_edit_router import admin_client_edit_router
 from handlers.admin.admin_clients_router import admin_clients_router
 from handlers.admin.admin_broadcast_router import admin_broadcast_router
 from handlers.start import start_router
@@ -73,6 +75,8 @@ async def main():
     dp.include_router(admin_main_router)  # новый роутер для админов
     dp.include_router(admin_broadcast_router)
     dp.include_router(admin_clients_router)
+    dp.include_router(admin_client_edit_router)
+    dp.include_router(owner_vision_add_router)
 
     logging.info("Бот запущен!")
     
