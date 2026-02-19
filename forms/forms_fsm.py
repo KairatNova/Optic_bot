@@ -63,3 +63,13 @@ class OwnerVisionStates(StatesGroup):
 # Новые состояния (добавьте в forms_fsm.py)
 class OwnerExportStates(StatesGroup):
     export_menu = State()  # подменю выгрузок
+
+
+class AdminMainStates(StatesGroup):
+    admin_menu = State()  # главное меню админа
+
+
+class AdminBroadcastStates(StatesGroup):
+    waiting_search_query = State()     # поиск клиента
+    viewing_profile = State()          # просмотр профиля (data: person_id)
+    waiting_message_text = State()     # ввод текста сообщения
