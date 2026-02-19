@@ -9,7 +9,7 @@ from sqlalchemy import select
 from database.models import Person
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
-from forms.forms_fsm import AdminBroadcastStates, AdminMainStates, OwnerMainStates
+from forms.forms_fsm import AdminBroadcastStates, AdminClientsStates, AdminMainStates, OwnerMainStates
 from keyboards.client_kb import get_client_keyboard
 
 admin_main_router = Router()
@@ -66,9 +66,13 @@ async def admin_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
     if action == "admin_clients":
         await bot.send_message(
             callback.from_user.id,
-            "👥 <b>Клиенты и рецепты</b>\n\nФункция в разработке.\n(Поиск, просмотр профиля, редактирование данных и зрения)",
-            reply_markup=get_admin_main_keyboard()
+            "🔍 <b>Поиск клиента</b>\n\n"
+            "Введите номер телефона, telegram_id или часть имени/фамилии.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_clients")]
+            ])
         )
+        await state.set_state(AdminClientsStates.waiting_search_query)
 
     elif action == "admin_broadcast_one":
         # Запускаем поиск клиента сразу
