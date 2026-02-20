@@ -176,16 +176,27 @@ async def admin_show_profile(trigger, person: Person, state: FSMContext, bot: Bo
 
     kb = [
         [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"admin_edit_client_{person.id}")],
-        [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"add_vision_{person.id}")],
+       [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"admin_add_vision_{person.id}")],
         [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"admin_view_all_visions_{person.id}")],
         [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="admin_back_to_search")],
         [InlineKeyboardButton(text="◀ В админ-меню", callback_data="admin_back_to_menu")],
     ]
 
+    # Всегда отправляем новое сообщение (без edit_text)
     if isinstance(trigger, Message):
         await trigger.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     else:
-        await trigger.message.edit_text(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
+        # CallbackQuery — удаляем старое, если возможно, и отправляем новое
+        try:
+            await trigger.message.delete()
+        except TelegramBadRequest:
+            pass  # сообщение уже удалено или недоступно — игнорируем
+
+        await bot.send_message(
+            trigger.from_user.id,
+            profile_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=kb)
+        )
 
     await state.update_data(person_id=person.id)
     await state.set_state(AdminClientsStates.viewing_profile)

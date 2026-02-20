@@ -9,6 +9,8 @@ from database.models import Person
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
 from forms.forms_fsm import AdminClientsStates, AdminMainStates  # убедитесь, что состояния есть
+from handlers.admin.admin_broadcast_router import has_admin_access
+from handlers.admin.admin_clients_router import admin_show_profile
 from keyboards.admin_kb import get_admin_main_keyboard  # клавиатура админа
 
 admin_client_edit_router = Router()
@@ -52,7 +54,7 @@ async def start_admin_edit_client(callback: CallbackQuery, state: FSMContext, bo
 # Отмена редактирования
 @admin_client_edit_router.callback_query(AdminClientsStates.editing_client_data, F.data == "admin_cancel_edit_client")
 async def admin_cancel_edit_client(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    if not is_admin_or_owner(callback.from_user.id):
+    if not await has_admin_access(callback.from_user.id):
         await callback.answer("Доступ запрещён", show_alert=True)
         return
 
@@ -68,17 +70,17 @@ async def admin_cancel_edit_client(callback: CallbackQuery, state: FSMContext, b
         async with AsyncSessionLocal() as session:
             person = await session.get(Person, person_id)
         if person:
-            # Возврат в профиль (используем функцию из admin_clients_router)
-            from .admin_clients_router import admin_show_profile
             await admin_show_profile(callback, person, state, bot)
+            await state.set_state(AdminClientsStates.viewing_profile)
 
-    await state.set_state(AdminClientsStates.viewing_profile)
     await callback.answer("Редактирование отменено")
+
+
 
 # Обработка ввода редактирования
 @admin_client_edit_router.message(AdminClientsStates.editing_client_data)
 async def admin_process_edit_client(message: Message, state: FSMContext, bot: Bot):
-    if not is_admin_or_owner(message.from_user.id):
+    if not await has_admin_access(message.from_user.id):
         await message.answer("❌ Доступ запрещён.")
         await state.clear()
         return
@@ -98,22 +100,16 @@ async def admin_process_edit_client(message: Message, state: FSMContext, bot: Bo
         changes = []
 
         if len(words) >= 1:
-            old_first = person.first_name
             person.first_name = words[0]
-            if old_first != person.first_name:
-                changes.append("Имя")
+            changes.append("Имя")
 
         if len(words) >= 2:
-            old_last = person.last_name
             person.last_name = words[1]
-            if old_last != person.last_name:
-                changes.append("Фамилия")
+            changes.append("Фамилия")
 
         if len(words) >= 3 and words[2].isdigit():
-            old_age = person.age
             person.age = int(words[2])
-            if old_age != person.age:
-                changes.append("Возраст")
+            changes.append("Возраст")
 
         if changes:
             await session.commit()
@@ -121,7 +117,7 @@ async def admin_process_edit_client(message: Message, state: FSMContext, bot: Bo
         else:
             await message.answer("Ничего не изменено. Укажите хотя бы одно значение.")
 
-        # Возврат в профиль клиента
+        # Возврат в обновленный профиль
         from .admin_clients_router import admin_show_profile
         await admin_show_profile(message, person, state, bot)
         await state.set_state(AdminClientsStates.viewing_profile)

@@ -85,3 +85,24 @@ class OwnerVisionAddStates(StatesGroup):
     waiting_sph_cyl_axis = State()     # шаг 1: 6 значений зрения
     waiting_pd_lens_frame = State()    # шаг 2: PD + тип линз + оправа
     waiting_note = State()             # шаг 3: примечание
+
+
+
+class AdminVisionAddStates(StatesGroup):
+    waiting_sph_cyl_axis = State()
+    waiting_pd_lens_frame = State()
+    waiting_note = State()
+
+
+# Новые состояния (добавьте в forms/forms_fsm.py)
+class AdminVisionViewStates(StatesGroup):
+    viewing_single_vision = State()  # просмотр одной записи с пагинацией
+    waiting_confirm_delete = State()  # подтверждение удаления
+
+
+class AdminVisionEditStates(StatesGroup):
+    waiting_sph_cyl_axis = State()     # шаг 1 редактирования
+    waiting_pd_lens_frame = State()    # шаг 2
+    waiting_note = State()             # шаг 3
+
+
