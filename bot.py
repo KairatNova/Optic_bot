@@ -24,9 +24,9 @@ from handlers.owner.export_router import owner_export_router
 from handlers.admin.admin_main import admin_main_router
 from handlers.admin.admin_clients_router import admin_clients_router
 from handlers.admin.admin_broadcast_router import admin_broadcast_router
-from handlers.admin.admin_client_edit_router import admin_client_edit_router
-from handlers.admin.admin_vision_add_router import admin_vision_add_router
-from handlers.admin.admin_vision_view_edit_router import admin_vision_view_edit_router
+from handlers.admin.admin_vision_edit_router import admin_vision_edit_router
+from handlers.admin.admin_vision_router import admin_vision_router
+
 
 
 from keyboards.client_kb import set_commands
@@ -95,9 +95,9 @@ async def main():
     dp.include_router(admin_main_router)
     dp.include_router(admin_broadcast_router)
     dp.include_router(admin_clients_router)
-    dp.include_router(admin_client_edit_router)
-    dp.include_router(admin_vision_add_router)
-    dp.include_router(admin_vision_view_edit_router)
+    dp.include_router(admin_vision_edit_router)
+    dp.include_router(admin_vision_router)
+
 
 
 

@@ -8,14 +8,18 @@ from sqlalchemy import select
 from database.models import Person, Vision
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
-from forms.forms_fsm import AdminClientsStates, AdminVisionAddStates, AdminMainStates
+from forms.forms_fsm import AdminClientsStates  # новые состояния для админа
 from datetime import date
 
-admin_vision_add_router = Router()
+# Импорт функции показа профиля админа (из admin_clients_router)
+from .admin_clients_router import admin_show_profile  # замените путь, если нужно
+
+admin_vision_router = Router()
 
 async def has_admin_access(user_id: int) -> bool:
     if user_id in OWNER_IDS:
         return True
+
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             select(Person.role).where(Person.telegram_id == user_id)
@@ -23,8 +27,8 @@ async def has_admin_access(user_id: int) -> bool:
         role = result.scalar_one_or_none()
         return role in ("admin", "owner")
 
-# Начало добавления записи зрения для админа
-@admin_vision_add_router.callback_query(AdminClientsStates.viewing_profile, F.data.startswith("admin_add_vision_"))
+# Начало добавления записи зрения (админ)
+@admin_vision_router.callback_query(F.data.startswith("admin_add_vision_"))
 async def admin_start_add_vision(callback: CallbackQuery, state: FSMContext, bot: Bot):
     if not await has_admin_access(callback.from_user.id):
         await callback.answer("Доступ запрещён", show_alert=True)
@@ -33,39 +37,29 @@ async def admin_start_add_vision(callback: CallbackQuery, state: FSMContext, bot
     person_id = int(callback.data.split("_")[3])
     await state.update_data(person_id=person_id)
 
-    try:
-        await callback.message.delete()
-    except TelegramBadRequest:
-        pass
-
     await bot.send_message(
         callback.from_user.id,
         "➕ <b>Добавление новой записи зрения</b>\n\n"
-        "<b>Шаг 1/3: Параметры зрения</b>\n\n"
-        "Введите 6 значений через пробел:\n"
-        "SPH R   CYL R   AXIS R\n"
-        "SPH L   CYL L   AXIS L\n\n"
+        "<b>Шаг 1/3:</b> Введите параметры для правого и левого глаза в одном сообщении.\n\n"
+        "Формат (6 значений через пробел):\n"
+        "Правая SPH  Правая CYL  Правая AXIS\n"
+        "Левая SPH   Левая CYL   Левая AXIS\n\n"
         "Пример:\n"
-        "-1.50 -0.50 180 -2.00 -1.00 90\n\n"
-        "Если значения нет — ставьте 0.",
+        "-1.50 -0.50 180\n"
+        "-2.00 -1.00 90\n\n"
+        "Значения могут быть с минусом или плюсом. Если какое-то поле пустое — используйте 0 или -.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_add_vision")]
         ])
     )
-    await state.set_state(AdminVisionAddStates.waiting_sph_cyl_axis)
+    await state.set_state(AdminClientsStates.waiting_sph_cyl_axis)
     await callback.answer()
 
-# Отмена добавления (для админа)
-@admin_vision_add_router.callback_query(F.data == "admin_cancel_add_vision")
+# Отмена добавления на любом этапе
+@admin_vision_router.callback_query(F.data == "admin_cancel_add_vision")
 async def admin_cancel_add_vision(callback: CallbackQuery, state: FSMContext, bot: Bot):
     if not await has_admin_access(callback.from_user.id):
-        await callback.answer("Доступ запрещён", show_alert=True)
         return
-
-    try:
-        await callback.message.delete()
-    except TelegramBadRequest:
-        pass
 
     data = await state.get_data()
     person_id = data.get("person_id")
@@ -73,24 +67,22 @@ async def admin_cancel_add_vision(callback: CallbackQuery, state: FSMContext, bo
     if person_id:
         async with AsyncSessionLocal() as session:
             person = await session.get(Person, person_id)
-            if person:
-                from handlers.admin.admin_clients_router import admin_show_profile
-                await admin_show_profile(callback, person, state, bot)
-                await state.set_state(AdminClientsStates.viewing_profile)
+        if person:
+            await admin_show_profile(callback, person, state, bot)
 
-    await callback.answer("Добавление отменено")
-    
-# Шаг 1: SPH, CYL, AXIS
-@admin_vision_add_router.message(AdminVisionAddStates.waiting_sph_cyl_axis)
+    await callback.answer("Добавление записи отменено")
+
+# Шаг 1: Ввод SPH, CYL, AXIS для правого и левого
+@admin_vision_router.message(AdminClientsStates.waiting_sph_cyl_axis)
 async def admin_process_sph_cyl_axis(message: Message, state: FSMContext, bot: Bot):
     if not await has_admin_access(message.from_user.id):
-        await message.answer("❌ Доступ запрещён.")
         return
 
     values = message.text.strip().split()
     if len(values) != 6:
         await message.answer(
-            "❌ Нужно ровно 6 значений. Повторите или отмените.",
+            "❌ Неверный формат. Нужно ровно 6 значений (SPH, CYL, AXIS для правого и левого).\n"
+            "Повторите ввод или отмените.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_add_vision")]
             ])
@@ -98,14 +90,11 @@ async def admin_process_sph_cyl_axis(message: Message, state: FSMContext, bot: B
         return
 
     try:
-        sph_r = float(values[0])
-        cyl_r = float(values[1])
-        axis_r = int(float(values[2]))
-        sph_l = float(values[3])
-        cyl_l = float(values[4])
-        axis_l = int(float(values[5]))
+        sph_r, cyl_r, axis_r, sph_l, cyl_l, axis_l = map(float, values[:3] + values[3:])
+        axis_r = int(axis_r)
+        axis_l = int(axis_l)
     except ValueError:
-        await message.answer("❌ Все значения должны быть числами. Повторите.")
+        await message.answer("❌ Все значения должны быть числами (например -1.5 или 180). Повторите.")
         return
 
     await state.update_data(
@@ -114,34 +103,35 @@ async def admin_process_sph_cyl_axis(message: Message, state: FSMContext, bot: B
     )
 
     await message.answer(
-        "<b>Шаг 2/3: PD, тип линз, модель оправы</b>\n\n"
-        "Введите через пробел:\n"
-        "PD   lens_type   frame_model\n\n"
-        "Пример: 62 progressive Ray-Ban RB2132\n"
-        "PD — обязательно. Остальное можно пропустить.",
+        "<b>Шаг 2/3:</b> Введите PD, тип линз и модель оправы в одном сообщении.\n\n"
+        "Формат:\n"
+        "PD lens_type frame_model\n\n"
+        "Пример:\n"
+        "62 progressive Ray-Ban RB2132\n\n"
+        "PD — число (например 62).\n"
+        "lens_type и frame_model — текст (можно пропустить, написав только PD).",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_add_vision")]
         ])
     )
-    await state.set_state(AdminVisionAddStates.waiting_pd_lens_frame)
+    await state.set_state(AdminClientsStates.waiting_pd_lens_frame)
 
 # Шаг 2: PD, lens_type, frame_model
-@admin_vision_add_router.message(AdminVisionAddStates.waiting_pd_lens_frame)
+@admin_vision_router.message(AdminClientsStates.waiting_pd_lens_frame)
 async def admin_process_pd_lens_frame(message: Message, state: FSMContext, bot: Bot):
     if not await has_admin_access(message.from_user.id):
-        await message.answer("❌ Доступ запрещён.")
         return
 
     parts = message.text.strip().split(maxsplit=2)
 
-    if not parts:
-        await message.answer("❌ Укажите хотя бы PD.")
+    if len(parts) < 1:
+        await message.answer("❌ Укажите хотя бы PD. Повторите.")
         return
 
     try:
         pd = float(parts[0])
     except ValueError:
-        await message.answer("❌ PD должен быть числом.")
+        await message.answer("❌ PD должен быть числом. Повторите.")
         return
 
     lens_type = parts[1] if len(parts) >= 2 else None
@@ -150,19 +140,19 @@ async def admin_process_pd_lens_frame(message: Message, state: FSMContext, bot: 
     await state.update_data(pd=pd, lens_type=lens_type, frame_model=frame_model)
 
     await message.answer(
-        "<b>Шаг 3/3: Примечание</b>\n\n"
-        "Введите текст (или пустое сообщение).",
+        "<b>Шаг 3/3:</b> Введите примечание (опционально).\n\n"
+        "Можно написать любой текст или просто отправить пустое сообщение/нажать Отмена.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_add_vision")]
         ])
     )
-    await state.set_state(AdminVisionAddStates.waiting_note)
+    await state.set_state(AdminClientsStates.waiting_note)
 
 # Шаг 3: Note и сохранение
-@admin_vision_add_router.message(AdminVisionAddStates.waiting_note)
+# Шаг 3: Note и сохранение
+@admin_vision_router.message(AdminClientsStates.waiting_note)
 async def admin_process_note_and_save(message: Message, state: FSMContext, bot: Bot):
     if not await has_admin_access(message.from_user.id):
-        await message.answer("❌ Доступ запрещён.")
         return
 
     note = message.text.strip() if message.text else None
@@ -193,18 +183,14 @@ async def admin_process_note_and_save(message: Message, state: FSMContext, bot: 
         )
         session.add(new_vision)
 
-        # Обновляем дату последнего визита
+        # Обновляем последний визит у клиента
         person.last_visit_date = date.today()
 
-        # Сохраняем изменения
         await session.commit()
-
-        # Загружаем свежие данные (чтобы избежать DetachedInstanceError)
-        await session.refresh(person)
-
-        # Теперь можно безопасно вызвать профиль
-        from handlers.admin.admin_clients_router import admin_show_profile
-        await admin_show_profile(message, person, state, bot)
+        await session.refresh(person)  # Перезагружаем person после commit, чтобы избежать DetachedInstanceError
 
     await message.answer("✅ Новая запись зрения успешно добавлена!")
+
+    # Возврат в профиль
+    await admin_show_profile(message, person, state, bot)
     await state.set_state(AdminClientsStates.viewing_profile)

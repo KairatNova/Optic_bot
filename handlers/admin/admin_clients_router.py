@@ -1,3 +1,5 @@
+# Новый файл: routers/admin_clients_router.py
+
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -8,17 +10,12 @@ from sqlalchemy import select, or_
 from database.models import Person, Vision
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
-from forms.forms_fsm import AdminMainStates, AdminClientsStates
-from keyboards.admin_kb import get_admin_main_keyboard  # или ваша клавиатура админа
+from forms.forms_fsm import AdminClientsStates, AdminMainStates
+from keyboards.admin_kb import get_admin_main_keyboard
 
 admin_clients_router = Router()
 
 async def has_admin_access(user_id: int) -> bool:
-    """
-    Проверяет, имеет ли пользователь права администратора или владельца.
-    - Если user_id в OWNER_IDS → доступ есть (даже если role не "owner").
-    - Если role в БД == "admin" или "owner" → доступ есть.
-    """
     if user_id in OWNER_IDS:
         return True
 
@@ -28,7 +25,6 @@ async def has_admin_access(user_id: int) -> bool:
         )
         role = result.scalar_one_or_none()
         return role in ("admin", "owner")
-    
 
 def normalize_phone(input_str: str) -> str | None:
     digits = ''.join(filter(str.isdigit, input_str))
@@ -40,9 +36,7 @@ def normalize_phone(input_str: str) -> str | None:
 
 @admin_clients_router.callback_query(AdminMainStates.admin_menu, F.data == "admin_clients")
 async def start_clients_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    user_id = callback.from_user.id
-
-    if not await has_admin_access(user_id):
+    if not await has_admin_access(callback.from_user.id):
         await callback.answer("Доступ запрещён", show_alert=True)
         return
 
@@ -56,19 +50,16 @@ async def start_clients_search(callback: CallbackQuery, state: FSMContext, bot: 
         "🔍 <b>Поиск клиента</b>\n\n"
         "Введите номер телефона, telegram_id или часть имени/фамилии.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_clients")]
+            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_clients_cancel")]
         ])
     )
     await state.set_state(AdminClientsStates.waiting_search_query)
     await callback.answer()
 
-# Отмена поиска
-@admin_clients_router.callback_query(AdminClientsStates.waiting_search_query, F.data == "admin_cancel_clients")
-async def cancel_clients_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    user_id = callback.from_user.id
-
-    if not await has_admin_access(user_id):
-        await callback.answer("Доступ запрещён", show_alert=True)
+# Отмена поиска — возврат в админ-меню
+@admin_clients_router.callback_query(AdminClientsStates.waiting_search_query, F.data == "admin_clients_cancel")
+async def cancel_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not await has_admin_access(callback.from_user.id):
         return
 
     try:
@@ -82,14 +73,12 @@ async def cancel_clients_search(callback: CallbackQuery, state: FSMContext, bot:
         reply_markup=get_admin_main_keyboard()
     )
     await state.set_state(AdminMainStates.admin_menu)
-    await callback.answer("Отменено")
+    await callback.answer("Поиск отменён")
 
 # Поиск клиента
 @admin_clients_router.message(AdminClientsStates.waiting_search_query)
-async def admin_process_search(message: Message, state: FSMContext, bot: Bot):
-    user_id = message.from_user.id
-
-    if not await has_admin_access(user_id):
+async def process_search(message: Message, state: FSMContext, bot: Bot):
+    if not await has_admin_access(message.from_user.id):
         await message.answer("❌ Доступ запрещён.")
         await state.clear()
         return
@@ -120,9 +109,9 @@ async def admin_process_search(message: Message, state: FSMContext, bot: Bot):
 
     if not persons:
         await message.answer(
-            "❌ Клиент не найден. Попробуйте другой запрос.",
+            "❌ Клиенты не найдены. Попробуйте другой запрос.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_clients")]
+                [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_clients_cancel")]
             ])
         )
         return
@@ -136,7 +125,7 @@ async def admin_process_search(message: Message, state: FSMContext, bot: Bot):
         name = p.full_name or p.phone or str(p.telegram_id)
         kb.append([InlineKeyboardButton(text=name, callback_data=f"admin_client_profile_{p.id}")])
 
-    kb.append([InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_clients")])
+    kb.append([InlineKeyboardButton(text="◀ Отмена", callback_data="admin_clients_cancel")])
 
     await message.answer(
         f"🔍 Найдено {len(persons)} клиентов. Выберите:",
@@ -169,6 +158,8 @@ async def admin_show_profile(trigger, person: Person, state: FSMContext, bot: Bo
         profile_text += f"Правая: SPH {last_vision.sph_r or '—'} | CYL {last_vision.cyl_r or '—'} | AXIS {last_vision.axis_r or '—'}\n"
         profile_text += f"Левая: SPH {last_vision.sph_l or '—'} | CYL {last_vision.cyl_l or '—'} | AXIS {last_vision.axis_l or '—'}\n"
         profile_text += f"PD: {last_vision.pd or '—'}\n"
+        profile_text += f"Тип линз: {last_vision.lens_type or '—'}\n"
+        profile_text += f"Модель оправы: {last_vision.frame_model or '—'}\n"
         if last_vision.note:
             profile_text += f"Примечание: {last_vision.note}\n"
     else:
@@ -176,21 +167,19 @@ async def admin_show_profile(trigger, person: Person, state: FSMContext, bot: Bo
 
     kb = [
         [InlineKeyboardButton(text="✏ Редактировать данные", callback_data=f"admin_edit_client_{person.id}")],
-       [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"admin_add_vision_{person.id}")],
+        [InlineKeyboardButton(text="➕ Добавить новую запись зрения", callback_data=f"admin_add_vision_{person.id}")],
         [InlineKeyboardButton(text="📜 Просмотреть все записи зрения", callback_data=f"admin_view_all_visions_{person.id}")],
         [InlineKeyboardButton(text="◀ Назад к поиску", callback_data="admin_back_to_search")],
         [InlineKeyboardButton(text="◀ В админ-меню", callback_data="admin_back_to_menu")],
     ]
 
-    # Всегда отправляем новое сообщение (без edit_text)
     if isinstance(trigger, Message):
         await trigger.answer(profile_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     else:
-        # CallbackQuery — удаляем старое, если возможно, и отправляем новое
         try:
             await trigger.message.delete()
         except TelegramBadRequest:
-            pass  # сообщение уже удалено или недоступно — игнорируем
+            pass
 
         await bot.send_message(
             trigger.from_user.id,
@@ -219,7 +208,7 @@ async def admin_back_to_search(callback: CallbackQuery, state: FSMContext, bot: 
         "🔍 <b>Поиск клиента</b>\n\n"
         "Введите номер телефона, telegram_id или часть имени/фамилии.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_clients")]
+            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_clients_cancel")]
         ])
     )
     await state.set_state(AdminClientsStates.waiting_search_query)

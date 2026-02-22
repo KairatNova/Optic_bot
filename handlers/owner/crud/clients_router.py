@@ -295,10 +295,6 @@ async def to_main_panel(callback: CallbackQuery, state: FSMContext, bot: Bot):
     )
     await callback.answer()
 
-# Заглушки для зрения (пока)
-#@owner_clients_router.callback_query(F.data.startswith("edit_vision_") )
-#async def vision_placeholder(callback: CallbackQuery):
-#    await callback.answer("Функция редактирования/добавления записей зрения пока в разработке.", show_alert=True)
 
 # Назад к поиску
 @owner_clients_router.callback_query(OwnerClientsStates.viewing_client_profile, F.data == "back_to_clients_search")
@@ -314,43 +310,8 @@ async def back_to_search(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await state.set_state(OwnerClientsStates.waiting_search_query)
     await callback.answer("Возврат к поиску")
 
-'''
-@owner_clients_router.callback_query(F.data.startswith("view_all_visions_"))
-async def view_all_visions(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    person_id = int(callback.data.split("_")[3])
 
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(Vision)
-            .where(Vision.person_id == person_id)
-            .order_by(Vision.visit_date.desc())
-        )
-        visions = result.scalars().all()
 
-    if not visions:
-        await callback.answer("У клиента нет записей зрения.", show_alert=True)
-        return
-
-    text = "<b>Все записи зрения клиента:</b>\n\n"
-    for v in visions:
-        text += f"📅 {v.visit_date}\n"
-        text += f"Правая: SPH {v.sph_r or '—'} | CYL {v.cyl_r or '—'} | AXIS {v.axis_r or '—'}\n"
-        text += f"Левая: SPH {v.sph_l or '—'} | CYL {v.cyl_l or '—'} | AXIS {v.axis_l or '—'}\n"
-        text += f"PD: {v.pd or '—'}\n"
-        text += f"Тип линз: {v.lens_type or '—'}\n"
-        text += f"Модель оправы: {v.frame_model or '—'}\n"
-        if v.note:
-            text += f"Примечание: {v.note}\n"
-        text += "────────────────────\n"
-
-    kb = [
-    [InlineKeyboardButton(text="◀ Назад в профиль", callback_data=f"back_to_profile_{person_id}")],
-    [InlineKeyboardButton(text="🏠 Главная панель", callback_data="to_main_panel")],
-]
-
-    await bot.send_message(callback.from_user.id, text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
-    await callback.answer()
-'''
 @owner_clients_router.callback_query(F.data.startswith("back_to_profile_"))
 async def back_to_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
     person_id = int(callback.data.split("_")[3])
