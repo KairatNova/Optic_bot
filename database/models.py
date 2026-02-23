@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta, date
 from typing import Optional
-from sqlalchemy import Boolean, Column, Computed, Date, DateTime, Float, Index, Integer, String, ForeignKey, Text, func
+from sqlalchemy import BigInteger, Boolean, Column, Computed, Date, DateTime, Float, Index, Integer, String, ForeignKey, Text, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from database.base import Base

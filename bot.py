@@ -29,9 +29,18 @@ from handlers.admin.admin_vision_router import admin_vision_router
 
 
 
+
+
+
+from middlewares.anti_spam import RateLimitMiddleware
+from middlewares.private import PrivateChatOnlyMiddleware
+
+
+
 from keyboards.client_kb import set_commands
+from middlewares.private import PrivateChatOnlyMiddleware
 from services.content import get_bot_content, init_bot_content
-from config import BOT_TOKEN
+from config import BOT_TOKEN, OWNER_IDS
 
 # Настройка логирования
 logging.basicConfig(
@@ -61,6 +70,8 @@ async def main():
     # 3. Создание диспетчера
     dp = Dispatcher()
 
+
+
     # 4. Установка команд бота
     try:
         await set_commands(bot)
@@ -76,6 +87,20 @@ async def main():
     except Exception as e:
         logger.error(f"Ошибка инициализации контента: {e}", exc_info=True)
 
+    
+    # Антиспам: ограничение частоты сообщений и нажатий кнопок
+    spam_guard = RateLimitMiddleware(
+        interval_seconds=1.0,
+        warning_cooldown_seconds=5.0,
+        warnings_before_mute=3,
+        warning_window_seconds=60.0,
+        mute_durations_seconds=[300, 1800, 3600, 10800],
+        exempt_user_ids=OWNER_IDS,
+    )
+    dp.message.middleware(spam_guard)
+    dp.callback_query.middleware(spam_guard)
+
+    dp.update.middleware(PrivateChatOnlyMiddleware())
     # 6. Подключение роутеров (ВАЖНО: порядок!)
     # Сначала общие
     dp.include_router(start_router)
