@@ -148,7 +148,7 @@ async def admin_process_pd_lens_frame(message: Message, state: FSMContext, bot: 
     )
     await state.set_state(AdminClientsStates.waiting_note)
 
-# Шаг 3: Note и сохранение
+
 # Шаг 3: Note и сохранение
 @admin_vision_router.message(AdminClientsStates.waiting_note)
 async def admin_process_note_and_save(message: Message, state: FSMContext, bot: Bot):

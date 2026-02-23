@@ -8,11 +8,11 @@ from sqlalchemy import select, delete
 from database.models import Person, Vision
 from database.session import AsyncSessionLocal
 from config import OWNER_IDS
-from forms.forms_fsm import AdminClientsStates  # добавьте новые состояния ниже
+from forms.forms_fsm import AdminClientsStates
 from datetime import date
 
-# Импорт функции показа профиля из админского роутера (если она в admin_clients_router)
-from .admin_clients_router import admin_show_profile  # замените на правильный путь
+# Импорт функции показа профиля админа
+from .admin_clients_router import admin_show_profile  # замените на ваш путь
 
 admin_vision_edit_router = Router()
 
@@ -74,8 +74,7 @@ async def admin_show_vision_record(trigger, index: int, visions: list[Vision], b
         ],
         [InlineKeyboardButton(text="✏ Редактировать эту запись", callback_data=f"admin_edit_this_vision_{v.id}")],
         [InlineKeyboardButton(text="🗑 Удалить эту запись", callback_data=f"admin_delete_this_vision_{v.id}")],
-        [InlineKeyboardButton(text="📄 Выгрузить в PDF", callback_data=f"admin_export_pdf_{v.id}")],
-        [InlineKeyboardButton(text="◀ Назад в профиль", callback_data=f"admin_back_to_profile_{visions[0].person_id}")],
+        [InlineKeyboardButton(text="◀ Назад в профиль", callback_data=f"admin_back_to_profile_{v.person_id}")],
     ]
 
     if isinstance(trigger, Message):
@@ -155,7 +154,30 @@ async def admin_process_delete_vision(callback: CallbackQuery, state: FSMContext
 async def admin_cancel_delete_vision(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await callback.answer("Удаление отменено", show_alert=True)
 
-# Редактирование записи
+# Кнопка "Назад в профиль" — перехват
+@admin_vision_edit_router.callback_query(F.data.startswith("admin_back_to_profile_"))
+async def admin_back_to_profile(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not await has_admin_access(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
+    person_id = int(callback.data.split("_")[4])
+
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
+
+    async with AsyncSessionLocal() as session:
+        person = await session.get(Person, person_id)
+        if not person:
+            await callback.answer("Клиент не найден.", show_alert=True)
+            return
+
+    await admin_show_profile(callback, person, state, bot)
+    await callback.answer("Возврат в профиль")
+
+# Редактирование записи — начало
 @admin_vision_edit_router.callback_query(F.data.startswith("admin_edit_this_vision_"))
 async def admin_start_edit_vision(callback: CallbackQuery, state: FSMContext, bot: Bot):
     if not await has_admin_access(callback.from_user.id):
@@ -180,9 +202,9 @@ async def admin_start_edit_vision(callback: CallbackQuery, state: FSMContext, bo
         callback.from_user.id,
         "✏ <b>Редактирование записи зрения</b>\n\n"
         f"{current_values}\n\n"
-        "<b>Шаг 1/3:</b> Введите новые параметры для правого и левого глаза (6 значений через пробел), или пропустите шаг для сохранения текущих.",
+        "<b>Шаг 1/3:</b> Введите новые параметры для правого и левого глаза (6 значений через пробел), или отправьте пустое сообщение для пропуска.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_edit_vision")]
+            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_edit_to_list")]
         ])
     )
     await state.set_state(AdminClientsStates.waiting_sph_cyl_axis_edit)
@@ -194,30 +216,37 @@ async def admin_process_sph_cyl_axis_edit(message: Message, state: FSMContext, b
     if not await has_admin_access(message.from_user.id):
         return
 
-    values = message.text.strip().split()
+    text = message.text.strip()
     data = await state.get_data()
     vision_id = data["vision_id"]
 
     async with AsyncSessionLocal() as session:
         vision = await session.get(Vision, vision_id)
 
-    if len(values) == 6:
-        try:
-            vision.sph_r, vision.cyl_r, vision.axis_r = map(float, values[:3])
-            vision.sph_l, vision.cyl_l, vision.axis_l = map(float, values[3:])
-            vision.axis_r = int(vision.axis_r)
-            vision.axis_l = int(vision.axis_l)
-            await session.commit()
-        except ValueError:
-            await message.answer("❌ Неверный формат. Повторите.")
-            return
+        if text:
+            values = text.split()
+            if len(values) != 6:
+                await message.answer(
+                    "❌ Неверный формат. Нужно ровно 6 значений или пустое сообщение для пропуска."
+                )
+                return
+
+            try:
+                vision.sph_r, vision.cyl_r, vision.axis_r = map(float, values[:3])
+                vision.sph_l, vision.cyl_l, vision.axis_l = map(float, values[3:])
+                vision.axis_r = int(vision.axis_r)
+                vision.axis_l = int(vision.axis_l)
+                await session.commit()
+            except ValueError:
+                await message.answer("❌ Все значения должны быть числами. Повторите.")
+                return
 
     current_values = f"Текущие: PD {vision.pd or '—'} | Lens: {vision.lens_type or '—'} | Frame: {vision.frame_model or '—'}\n"
 
     await message.answer(
-        "<b>Шаг 2/3:</b> Введите PD, тип линз, модель оправы (через пробел), или пропустите.",
+        "<b>Шаг 2/3:</b> Введите PD, тип линз, модель оправы (через пробел), или пустое сообщение для пропуска.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_edit_vision")]
+            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_edit_to_list")]
         ])
     )
     await state.set_state(AdminClientsStates.waiting_pd_lens_frame_edit)
@@ -228,34 +257,39 @@ async def admin_process_pd_lens_frame_edit(message: Message, state: FSMContext, 
     if not await has_admin_access(message.from_user.id):
         return
 
-    parts = message.text.strip().split(maxsplit=2)
+    text = message.text.strip()
     data = await state.get_data()
     vision_id = data["vision_id"]
 
     async with AsyncSessionLocal() as session:
         vision = await session.get(Vision, vision_id)
 
-    if len(parts) >= 1:
-        try:
-            vision.pd = float(parts[0])
-        except ValueError:
-            await message.answer("❌ PD должен быть числом. Повторите.")
-            return
+        if text:
+            parts = text.split(maxsplit=2)
+            if len(parts) < 1:
+                await message.answer("❌ Укажите хотя бы PD или пустое сообщение для пропуска.")
+                return
 
-        if len(parts) >= 2:
-            vision.lens_type = parts[1] or None
+            try:
+                vision.pd = float(parts[0])
+            except ValueError:
+                await message.answer("❌ PD должен быть числом. Повторите.")
+                return
 
-        if len(parts) >= 3:
-            vision.frame_model = parts[2] or None
+            if len(parts) >= 2:
+                vision.lens_type = parts[1] or None
 
-        await session.commit()
+            if len(parts) >= 3:
+                vision.frame_model = parts[2] or None
+
+            await session.commit()
 
     current_note = f"Текущий: {vision.note or '—'}\n"
 
     await message.answer(
-        "<b>Шаг 3/3:</b> Введите новое примечание, или пропустите.",
+        "<b>Шаг 3/3:</b> Введите новое примечание, или пустое сообщение для пропуска.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_edit_vision")]
+            [InlineKeyboardButton(text="◀ Отмена", callback_data="admin_cancel_edit_to_list")]
         ])
     )
     await state.set_state(AdminClientsStates.waiting_note_edit)
@@ -266,34 +300,44 @@ async def admin_process_note_edit(message: Message, state: FSMContext, bot: Bot)
     if not await has_admin_access(message.from_user.id):
         return
 
-    note = message.text.strip() if message.text else None
+    text = message.text.strip()
     data = await state.get_data()
     vision_id = data["vision_id"]
     person_id = data["person_id"]
 
     async with AsyncSessionLocal() as session:
         vision = await session.get(Vision, vision_id)
-        if note is not None:
-            vision.note = note
+        if text:
+            vision.note = text
             await session.commit()
 
         person = await session.get(Person, person_id)
+        await session.refresh(person)
 
     await message.answer("✅ Запись обновлена!")
 
     await admin_show_profile(message, person, state, bot)
     await state.set_state(AdminClientsStates.viewing_profile)
 
-# Отмена редактирования
-@admin_vision_edit_router.callback_query(F.data == "admin_cancel_edit_vision")
-async def admin_cancel_edit_vision(callback: CallbackQuery, state: FSMContext, bot: Bot):
+# Кнопка "Отмена" на этапах редактирования → возврат к списку всех записей
+@admin_vision_edit_router.callback_query(F.data == "admin_cancel_edit_to_list")
+async def admin_cancel_edit_to_list(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    if not await has_admin_access(callback.from_user.id):
+        await callback.answer("Доступ запрещён", show_alert=True)
+        return
+
     data = await state.get_data()
+    visions_ids = data.get("visions_ids", [])
     person_id = data.get("person_id")
 
-    if person_id:
-        async with AsyncSessionLocal() as session:
-            person = await session.get(Person, person_id)
-        if person:
-            await admin_show_profile(callback, person, state, bot)
+    if not visions_ids or not person_id:
+        await callback.answer("Данные не найдены.", show_alert=True)
+        await state.clear()
+        return
 
-    await callback.answer("Редактирование отменено")
+    async with AsyncSessionLocal() as session:
+        visions = [await session.get(Vision, vid) for vid in visions_ids]
+
+    await admin_show_vision_record(callback, 0, visions, bot, state)
+    await state.update_data(current_vision_index=0)
+    await callback.answer("Редактирование отменено. Возврат к списку записей.")

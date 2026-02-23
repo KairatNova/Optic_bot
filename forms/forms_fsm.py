@@ -83,7 +83,7 @@ class AdminClientsStates(StatesGroup):
     waiting_pd_lens_frame = State()
     waiting_note = State()
 
-    waiting_sph_cyl_axis_edit = State()          # редактирование
+    waiting_sph_cyl_axis_edit = State()
     waiting_pd_lens_frame_edit = State()
     waiting_note_edit = State()
 
