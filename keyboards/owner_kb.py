@@ -68,9 +68,16 @@ def get_export_submenu_keyboard():
 def get_dev_panel_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Статус бота", callback_data="dev_status")],
+        [InlineKeyboardButton(text="♻ Перезапуск бота", callback_data="dev_restart_bot")],
         [InlineKeyboardButton(text="📊 Статистика БД", callback_data="dev_db_stats")],
+        [InlineKeyboardButton(text="📨 Статус рассылки", callback_data="dev_broadcast_status")],
+        [InlineKeyboardButton(text="⛔ Остановить рассылку", callback_data="dev_broadcast_stop")],
         [InlineKeyboardButton(text="🧪 Health-check логов", callback_data="dev_health_check")],
         [InlineKeyboardButton(text="📄 Получить последние логи", callback_data="dev_get_logs")],
         [InlineKeyboardButton(text="🚨 Получить ошибки из логов", callback_data="dev_get_errors")],
+        [InlineKeyboardButton(text="🧾 Выгрузить audit-log", callback_data="dev_get_audit")],
+        [InlineKeyboardButton(text="💾 Backup БД + скачать", callback_data="dev_backup_db")],
+        [InlineKeyboardButton(text="📦 Скачать последний backup", callback_data="dev_download_latest_backup")],
+        [InlineKeyboardButton(text="♻ Restore из последнего backup", callback_data="dev_restore_last_backup")],
         [InlineKeyboardButton(text="◀ Назад в панель владельца", callback_data="dev_back")],
     ])

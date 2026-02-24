@@ -44,9 +44,13 @@ from middlewares.private import PrivateChatOnlyMiddleware
 from keyboards.client_kb import set_commands
 from middlewares.private import PrivateChatOnlyMiddleware
 from services.content import get_bot_content, init_bot_content
-from config import BOT_TOKEN, OWNER_IDS
+from config import BOT_TOKEN, OWNER_IDS, AUTO_BACKUP_INTERVAL_HOURS, AUTO_BACKUP_TARGET_IDS
+from middlewares.anti_spam import RateLimitMiddleware
+from middlewares.metrics import MetricsMiddleware
+from utils.owner_alerts import OwnerAlertHandler
+from utils.backup_service import auto_backup_worker
 
-# Настройка логирования
+
 # Настройка логирования
 LOG_DIR = Path("logs")
 LOG_DIR.mkdir(exist_ok=True)
@@ -59,9 +63,12 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout),
         RotatingFileHandler(LOG_DIR / "bot.log", maxBytes=5_000_000, backupCount=3, encoding="utf-8"),
     ],
-    )
-logger = logging.getLogger(__name__)
+)
+owner_alert_handler = OwnerAlertHandler(OWNER_IDS)
+owner_alert_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+logging.getLogger().addHandler(owner_alert_handler)
 
+logger = logging.getLogger(__name__)
 
 async def main():
     logger.info("Запуск бота...")
@@ -79,6 +86,7 @@ async def main():
         token=str(BOT_TOKEN),
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
+    owner_alert_handler.bind_bot(bot)
 
     # 3. Создание диспетчера
     dp = Dispatcher()
@@ -101,6 +109,7 @@ async def main():
         logger.error(f"Ошибка инициализации контента: {e}", exc_info=True)
 
     
+
     # Антиспам: ограничение частоты сообщений и нажатий кнопок
     spam_guard = RateLimitMiddleware(
         interval_seconds=1.0,
@@ -112,6 +121,11 @@ async def main():
     )
     dp.message.middleware(spam_guard)
     dp.callback_query.middleware(spam_guard)
+
+    metrics_middleware = MetricsMiddleware()
+    dp.message.middleware(metrics_middleware)
+    dp.callback_query.middleware(metrics_middleware)
+
 
     dp.update.middleware(PrivateChatOnlyMiddleware())
     # 6. Подключение роутеров (ВАЖНО: порядок!)
@@ -138,6 +152,9 @@ async def main():
     dp.include_router(admin_vision_router)
 
 
+    auto_backup_task = asyncio.create_task(
+        auto_backup_worker(bot, target_ids=AUTO_BACKUP_TARGET_IDS, interval_hours=AUTO_BACKUP_INTERVAL_HOURS)
+    )
 
 
 
@@ -150,6 +167,11 @@ async def main():
     except Exception as e:
         logger.error(f"Ошибка поллинга: {e}", exc_info=True)
     finally:
+        auto_backup_task.cancel()
+        try:
+            await auto_backup_task
+        except asyncio.CancelledError:
+            pass
         await bot.session.close()
         logger.info("Бот остановлен")
 

@@ -12,6 +12,8 @@ from config import OWNER_IDS
 from forms.forms_fsm import AdminBroadcastStates, AdminClientsStates, AdminMainStates, OwnerMainStates
 from keyboards.client_kb import get_client_keyboard
 
+from utils.audit import write_audit_event
+
 admin_main_router = Router()
 
 def is_admin_or_owner(user_id: int) -> bool:
@@ -48,6 +50,7 @@ async def cmd_admin(message: Message, state: FSMContext):
         reply_markup=get_admin_main_keyboard()
     )
     await state.set_state(AdminMainStates.admin_menu)
+    write_audit_event(message.from_user.id, "admin", "open_admin_panel")
 
 @admin_main_router.callback_query(AdminMainStates.admin_menu, F.data.startswith("admin_"))
 async def admin_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
@@ -57,6 +60,7 @@ async def admin_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
         return
 
     action = callback.data
+    write_audit_event(callback.from_user.id, "admin", "admin_menu_action", {"action": action})
 
     try:
         await callback.message.delete()

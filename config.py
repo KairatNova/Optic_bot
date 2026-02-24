@@ -26,3 +26,10 @@ SECTION_NAMES = {
 }
 
 
+
+AUTO_BACKUP_INTERVAL_HOURS = int(os.getenv("AUTO_BACKUP_INTERVAL_HOURS", "24"))
+AUTO_BACKUP_TARGET_IDS = [
+    int(x)
+    for x in os.getenv("AUTO_BACKUP_TARGET_IDS", "").split(",")
+    if x.strip().isdigit()
+] or OWNER_IDS

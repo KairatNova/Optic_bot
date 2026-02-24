@@ -13,6 +13,7 @@ from handlers.owner.admins_router import get_admins_keyboard, get_admins_list_te
 from keyboards.client_kb import get_client_keyboard
 from keyboards.owner_kb import get_admins_submenu_keyboard, get_broadcast_submenu_keyboard, get_clients_submenu_keyboard, get_dev_panel_keyboard, get_export_submenu_keyboard, get_owner_main_keyboard, get_sections_keyboard
 from services.content import get_content
+from utils.audit import write_audit_event
 
 owner_main_router = Router()
 
@@ -30,6 +31,7 @@ async def cmd_owner_main(message: Message, state: FSMContext):
         reply_markup=get_owner_main_keyboard()
     )
     await state.set_state(OwnerMainStates.main_menu)
+    write_audit_event(message.from_user.id, "owner", "open_owner_panel")
 
 @owner_main_router.callback_query(OwnerMainStates.main_menu, F.data.startswith("owner_"))
 async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
@@ -38,6 +40,7 @@ async def owner_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bo
         return
 
     action = callback.data
+    write_audit_event(callback.from_user.id, "owner", "owner_menu_action", {"action": action})
 
     try:
         await callback.message.delete()

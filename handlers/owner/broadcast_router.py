@@ -12,6 +12,9 @@ from config import OWNER_IDS
 from forms.forms_fsm import OwnerBroadcastStates, OwnerMainStates
 from keyboards.owner_kb import get_owner_main_keyboard, get_broadcast_submenu_keyboard
 
+from utils.broadcast_monitor import start as broadcast_start, mark_sent as broadcast_mark_sent, finish as broadcast_finish, status as broadcast_status
+from utils.audit import write_audit_event
+
 owner_broadcast_router = Router()
 
 def is_owner(user_id: int) -> bool:
@@ -178,6 +181,8 @@ async def confirm_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot
         return
 
     # Запуск рассылки
+    broadcast_start(total=count, requested_by=callback.from_user.id)
+    write_audit_event(callback.from_user.id, "owner", "broadcast_all_start", {"total": count})
     progress_message = await bot.send_message(
         callback.from_user.id,
         f"📢 Рассылка начата...\nОтправлено: 0 из {count}"
@@ -196,10 +201,16 @@ async def confirm_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot
         try:
             await bot.send_message(person.telegram_id, text)
             sent += 1
+            broadcast_mark_sent(ok=True)
         except Exception:
             errors += 1
+            broadcast_mark_sent(ok=False)
 
         await asyncio.sleep(1.05)  # Безопасная пауза
+
+        if broadcast_status.cancel_requested:
+            break
+
 
         if sent % 20 == 0 or sent == count:
             try:
@@ -210,10 +221,14 @@ async def confirm_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot
                 )
             except TelegramBadRequest:
                 pass
+    broadcast_finish()
+    write_audit_event(callback.from_user.id, "owner", "broadcast_all_finish", {"sent": sent, "errors": errors})
+
+    cancelled_note = "\n⛔ Остановлена вручную" if broadcast_status.cancel_requested else ""
 
     await bot.send_message(
         callback.from_user.id,
-        f"✅ Рассылка завершена!\nУспешно: {sent}\nОшибок: {errors}",
+        f"✅ Рассылка завершена!\nУспешно: {sent}\nОшибок: {errors}{cancelled_note}",
         reply_markup=get_broadcast_submenu_keyboard()
     )
     await state.set_state(OwnerBroadcastStates.broadcast_menu)

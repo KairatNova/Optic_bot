@@ -12,3 +12,4 @@ data/database.db
 .vscode/
 pytest.ini
 bot.log
+audit.log
