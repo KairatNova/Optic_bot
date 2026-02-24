@@ -24,7 +24,7 @@ def get_sections_keyboard():
 def get_owner_main_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📝 Редактировать контент бота", callback_data="owner_edit_content")],
-        [InlineKeyboardButton(text="🔍 Поиск клиентов", callback_data="owner_search_clients")],
+  [InlineKeyboardButton(text="🛠 Панель разработчика", callback_data="owner_dev_panel")],
 [InlineKeyboardButton(text="👥 Клиенты и рецепты", callback_data="owner_clients")],
         [InlineKeyboardButton(text="📨 Рассылки (всем / одному)", callback_data="owner_broadcast")],
         [InlineKeyboardButton(text="📊 Выгрузки данных (Excel/PDF)", callback_data="owner_exports")],
@@ -62,4 +62,15 @@ def get_export_submenu_keyboard():
         [InlineKeyboardButton(text="📊 Выгрузить записи зрения в Excel", callback_data="export_all_visions")],
         [InlineKeyboardButton(text="📄 Выгрузить клиентов + последние записи зрения (Excel)", callback_data="export_clients_last_vision")],
         [InlineKeyboardButton(text="◀ Назад в главное меню", callback_data="export_back")],
+    ])
+
+
+def get_dev_panel_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Статус бота", callback_data="dev_status")],
+        [InlineKeyboardButton(text="📊 Статистика БД", callback_data="dev_db_stats")],
+        [InlineKeyboardButton(text="🧪 Health-check логов", callback_data="dev_health_check")],
+        [InlineKeyboardButton(text="📄 Получить последние логи", callback_data="dev_get_logs")],
+        [InlineKeyboardButton(text="🚨 Получить ошибки из логов", callback_data="dev_get_errors")],
+        [InlineKeyboardButton(text="◀ Назад в панель владельца", callback_data="dev_back")],
     ])

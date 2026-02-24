@@ -2,6 +2,9 @@ import asyncio
 import logging
 import sys
 
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -9,6 +12,7 @@ from aiogram.enums import ParseMode
 from database.init_db import init_db
 
 # Импорты роутеров (группируем по типу)
+from handlers.owner.dev_panel_router import dev_panel_router
 from handlers.start import start_router
 from handlers.client import client_router
 
@@ -43,12 +47,21 @@ from services.content import get_bot_content, init_bot_content
 from config import BOT_TOKEN, OWNER_IDS
 
 # Настройка логирования
+# Настройка логирования
+LOG_DIR = Path("logs")
+LOG_DIR.mkdir(exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    stream=sys.stdout
-)
+
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        RotatingFileHandler(LOG_DIR / "bot.log", maxBytes=5_000_000, backupCount=3, encoding="utf-8"),
+    ],
+    )
 logger = logging.getLogger(__name__)
+
 
 async def main():
     logger.info("Запуск бота...")
@@ -115,6 +128,7 @@ async def main():
     dp.include_router(owner_vision_router)
     dp.include_router(owner_vision_edit_router)
     dp.include_router(owner_export_router)
+    dp.include_router(dev_panel_router)
 
     # Потом админы
     dp.include_router(admin_main_router)
@@ -122,6 +136,7 @@ async def main():
     dp.include_router(admin_clients_router)
     dp.include_router(admin_vision_edit_router)
     dp.include_router(admin_vision_router)
+
 
 
 

@@ -11,3 +11,4 @@ data/database.db
 .pytest_cache
 .vscode/
 pytest.ini
+bot.log
