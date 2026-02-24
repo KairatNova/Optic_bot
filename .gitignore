@@ -13,3 +13,5 @@ data/database.db
 pytest.ini
 bot.log
 audit.log
+logs/
+data/database.db

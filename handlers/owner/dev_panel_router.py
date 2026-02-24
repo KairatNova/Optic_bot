@@ -1,17 +1,20 @@
 import asyncio
 import logging
 import os
-import resource
 import shutil
 import sys
 import time
+
+import psutil
+#import resource
+
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import BufferedInputFile, CallbackQuery, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, FSInputFile, Message
 from sqlalchemy import func, select
 
 from config import AUTO_BACKUP_INTERVAL_HOURS, AUTO_BACKUP_TARGET_IDS, OWNER_IDS
@@ -46,13 +49,29 @@ def _tail_lines(path: Path, limit: int) -> str:
     return "\n".join(text.splitlines()[-limit:])
 
 
-def _ram_mb() -> float:
-    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    # Linux reports KB, macOS reports bytes
-    if sys.platform == "darwin":
-        return usage / (1024 * 1024)
-    return usage / 1024
+#def _ram_mb() -> float:
+#    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+#    # Linux reports KB, macOS reports bytes
+#    if sys.platform == "darwin":
+#        return usage / (1024 * 1024)
+#    return usage / 1024
 
+
+
+
+def _ram_mb() -> float:
+    """
+    Возвращает объём резидентной памяти текущего процесса в MiB.
+    Работает на Windows, Linux, macOS.
+    """
+    try:
+        process = psutil.Process()
+        rss_bytes = process.memory_info().rss
+        return rss_bytes / (1024 * 1024)          # байты → MiB
+    except Exception as e:
+        # На случай очень редких ошибок (права, etc.)
+        print(f"Не удалось получить использование памяти: {e}", file=sys.stderr)
+        return 0.0
 
 async def _guard_owner(callback: CallbackQuery) -> bool:
     if not is_owner(callback.from_user.id):
@@ -257,7 +276,7 @@ async def dev_backup_db(callback: CallbackQuery):
 
     write_audit_event(callback.from_user.id, "owner", "db_backup_created", {"file": str(backup_path)})
     await callback.message.answer(f"✅ Backup создан: <code>{backup_path}</code>", reply_markup=get_dev_panel_keyboard())
-    await callback.message.answer_document(document=str(backup_path), caption="💾 Backup БД")
+    await callback.message.answer_document(document=FSInputFile(backup_path), caption="💾 Backup БД")
     await callback.answer()
 
 
@@ -272,7 +291,7 @@ async def dev_download_latest_backup(callback: CallbackQuery):
         await callback.answer()
         return
 
-    await callback.message.answer_document(document=str(latest), caption=f"📦 Последний backup: {latest.name}")
+    await callback.message.answer_document(document=FSInputFile(latest), caption=f"📦 Последний backup: {latest.name}")
     await callback.answer()
 
 

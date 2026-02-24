@@ -5,6 +5,7 @@ from pathlib import Path
 from shutil import copy2
 
 from aiogram import Bot
+from aiogram.types import FSInputFile
 
 from utils.audit import write_audit_event
 
@@ -40,7 +41,7 @@ async def auto_backup_worker(bot: Bot, target_ids: list[int], interval_hours: in
             backup_path = create_backup_file()
             caption = f"💾 Автобекап БД: {backup_path.name}"
             for owner_id in target_ids:
-                await bot.send_document(owner_id, document=str(backup_path), caption=caption)
+                await bot.send_document(owner_id, document=FSInputFile(backup_path), caption=caption)
             write_audit_event(0, "system", "auto_backup_sent", {"file": str(backup_path), "targets": target_ids})
         except asyncio.CancelledError:
             logger.info("Auto-backup worker cancelled")

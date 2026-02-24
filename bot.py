@@ -31,15 +31,8 @@ from handlers.admin.admin_broadcast_router import admin_broadcast_router
 from handlers.admin.admin_vision_edit_router import admin_vision_edit_router
 from handlers.admin.admin_vision_router import admin_vision_router
 
-
-
-
-
-
 from middlewares.anti_spam import RateLimitMiddleware
 from middlewares.private import PrivateChatOnlyMiddleware
-
-
 
 from keyboards.client_kb import set_commands
 from middlewares.private import PrivateChatOnlyMiddleware
@@ -90,8 +83,6 @@ async def main():
 
     # 3. Создание диспетчера
     dp = Dispatcher()
-
-
 
     # 4. Установка команд бота
     try:
@@ -155,9 +146,6 @@ async def main():
     auto_backup_task = asyncio.create_task(
         auto_backup_worker(bot, target_ids=AUTO_BACKUP_TARGET_IDS, interval_hours=AUTO_BACKUP_INTERVAL_HOURS)
     )
-
-
-
 
     # 7. Запуск поллинга
     try:
