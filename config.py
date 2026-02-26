@@ -1,19 +1,8 @@
 import os
 from dotenv import load_dotenv, find_dotenv
-
+from typing import List
 
 load_dotenv(find_dotenv())
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-DATABASE_URL = "sqlite+aiosqlite:///data/database.db"
-
-'''OWNER_IDS: set[int] = {
-    int(x)
-    for x in os.getenv("OWNER_IDS", "").split(",")
-    if x.strip()
-}'''
-
-OWNER_IDS = [647302816,636030247]
-
 
 # Читаемые названия разделов
 SECTION_NAMES = {
@@ -25,12 +14,30 @@ SECTION_NAMES = {
     "faq": "❓ Поддержка и FAQ",
 }
 
+def _get_required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Environment variable {name} is required")
+    return value
 
+
+def _parse_id_list(raw_value: str) -> List[int]:
+    values: List[int] = []
+    for item in raw_value.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        if not item.isdigit():
+            raise RuntimeError(f"Invalid integer value in ID list: {item}")
+        values.append(int(item))
+    return values
+
+
+BOT_TOKEN = _get_required_env("BOT_TOKEN")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///data/database.db")
+
+OWNER_IDS = _parse_id_list(_get_required_env("OWNER_IDS"))
 
 
 AUTO_BACKUP_INTERVAL_HOURS = int(os.getenv("AUTO_BACKUP_INTERVAL_HOURS", "24"))
-AUTO_BACKUP_TARGET_IDS = [
-    int(x)
-    for x in os.getenv("AUTO_BACKUP_TARGET_IDS", "").split(",")
-    if x.strip().isdigit()
-] or OWNER_IDS
+AUTO_BACKUP_TARGET_IDS = _parse_id_list(os.getenv("AUTO_BACKUP_TARGET_IDS", "")) or OWNER_IDS
