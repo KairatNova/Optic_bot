@@ -15,3 +15,9 @@ bot.log
 audit.log
 logs/
 data/database.db
+--env-file
+--name
+-v
+--restart
+optic-bot
+optic-botlatest
